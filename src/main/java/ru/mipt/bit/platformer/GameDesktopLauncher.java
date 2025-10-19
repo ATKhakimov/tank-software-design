@@ -1,4 +1,4 @@
-// Переписан запуск через абстракции танка, дерева, поля и направлений
+// Разделены модели и графика, обработка ввода вынесена в InputHandler со стрельбой
 package ru.mipt.bit.platformer;
 
 import com.badlogic.gdx.ApplicationListener;
@@ -9,6 +9,8 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.GridPoint2;
+import ru.mipt.bit.platformer.model.TankModel;
+import ru.mipt.bit.platformer.model.TreeObstacleModel;
 
 import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
 
@@ -20,19 +22,24 @@ public class GameDesktopLauncher implements ApplicationListener {
     private GameField field;
     private Tank player;
     private TreeObstacle tree;
+    private InputHandler inputHandler;
 
     @Override
     public void create() {
         batch = new SpriteBatch();
         field = new GameField(batch);
 
-        player = new Tank(new Texture("images/tank_blue.png"), MOVEMENT_SPEED);
-        player.setPosition(new GridPoint2(1, 1));
+        TankModel tankModel = new TankModel(MOVEMENT_SPEED);
+        tankModel.setPosition(new GridPoint2(1, 1));
+        player = new Tank(new Texture("images/tank_blue.png"), tankModel);
         player.align(field.movement());
 
-        tree = new TreeObstacle(new Texture("images/greenTree.png"));
-        tree.setPosition(new GridPoint2(1, 3));
+        TreeObstacleModel treeModel = new TreeObstacleModel();
+        treeModel.setPosition(new GridPoint2(1, 3));
+        tree = new TreeObstacle(new Texture("images/greenTree.png"), treeModel);
         tree.align(field.movement());
+
+        inputHandler = new InputHandler(tankModel, treeModel);
     }
 
     @Override
@@ -42,22 +49,7 @@ public class GameDesktopLauncher implements ApplicationListener {
 
         float deltaTime = Gdx.graphics.getDeltaTime();
 
-        for (Direction direction : Direction.values()) {
-            if (!direction.isPressed()) {
-                continue;
-            }
-            if (player.isReady()) {
-                GridPoint2 target = direction.apply(player.getCoordinates());
-                if (tree.occupies(target)) {
-                    player.face(direction);
-                } else {
-                    player.start(direction);
-                }
-            } else {
-                player.face(direction);
-            }
-        }
-
+        inputHandler.handle();
         player.update(field.movement(), deltaTime);
 
         field.render();
@@ -90,7 +82,6 @@ public class GameDesktopLauncher implements ApplicationListener {
 
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
-        // level width: 10 tiles x 128px, height: 8 tiles x 128px
         config.setWindowedMode(1280, 1024);
         new Lwjgl3Application(new GameDesktopLauncher(), config);
     }

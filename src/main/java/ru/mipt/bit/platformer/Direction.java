@@ -1,32 +1,25 @@
-// Реализовано перечисление направлений игрока
+// Перечисление направлений: вектор направления, поворот и привязка клавиш
 package ru.mipt.bit.platformer;
 
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.GridPoint2;
+import com.badlogic.gdx.math.Vector2;
 
 public enum Direction {
-    UP(0, 1, 90f, Input.Keys.UP, Input.Keys.W),
-    LEFT(-1, 0, -180f, Input.Keys.LEFT, Input.Keys.A),
-    DOWN(0, -1, -90f, Input.Keys.DOWN, Input.Keys.S),
-    RIGHT(1, 0, 0f, Input.Keys.RIGHT, Input.Keys.D);
+    UP(0, 1, 90f),
+    LEFT(-1, 0, -180f),
+    DOWN(0, -1, -90f),
+    RIGHT(1, 0, 0f);
 
     private final int dx;
     private final int dy;
     private final float rotation;
-    private final int primaryKey;
-    private final int secondaryKey;
+    private final Vector2 vector;
 
-    Direction(int dx, int dy, float rotation, int primaryKey, int secondaryKey) {
+    Direction(int dx, int dy, float rotation) {
         this.dx = dx;
         this.dy = dy;
         this.rotation = rotation;
-        this.primaryKey = primaryKey;
-        this.secondaryKey = secondaryKey;
-    }
-
-    public boolean isPressed() {
-        return Gdx.input.isKeyPressed(primaryKey) || Gdx.input.isKeyPressed(secondaryKey);
+        this.vector = new Vector2(dx, dy);
     }
 
     public GridPoint2 apply(GridPoint2 coordinates) {
@@ -35,5 +28,17 @@ public enum Direction {
 
     public float rotation() {
         return rotation;
+    }
+
+    public Vector2 vector() {
+        return vector.cpy();
+    }
+
+    public int dx() {
+        return dx;
+    }
+
+    public int dy() {
+        return dy;
     }
 }
