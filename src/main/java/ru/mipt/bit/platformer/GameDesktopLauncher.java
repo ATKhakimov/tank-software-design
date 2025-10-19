@@ -1,4 +1,4 @@
-// Разделены модели и графика, обработка ввода вынесена в InputHandler со стрельбой
+// Исправлены нарушения OCP/DIP через интерфейсы GameObject/Obstacle/Renderable
 package ru.mipt.bit.platformer;
 
 import com.badlogic.gdx.ApplicationListener;
@@ -21,7 +21,7 @@ public class GameDesktopLauncher implements ApplicationListener {
     private Batch batch;
     private GameField field;
     private Tank player;
-    private TreeObstacle tree;
+    private Renderable tree;
     private InputHandler inputHandler;
 
     @Override
