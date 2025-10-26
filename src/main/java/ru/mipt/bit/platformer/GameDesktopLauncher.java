@@ -9,8 +9,15 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.GridPoint2;
+import ru.mipt.bit.platformer.level.FileLevelLoader;
+import ru.mipt.bit.platformer.level.LevelData;
+import ru.mipt.bit.platformer.level.LevelLoader;
+import ru.mipt.bit.platformer.level.RandomLevelGenerator;
 import ru.mipt.bit.platformer.model.TankModel;
 import ru.mipt.bit.platformer.model.TreeObstacleModel;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
 
@@ -21,7 +28,7 @@ public class GameDesktopLauncher implements ApplicationListener {
     private Batch batch;
     private GameField field;
     private Tank player;
-    private Renderable tree;
+    private final List<Renderable> obstacles = new ArrayList<>();
     private InputHandler inputHandler;
 
     @Override
@@ -29,17 +36,49 @@ public class GameDesktopLauncher implements ApplicationListener {
         batch = new SpriteBatch();
         field = new GameField(batch);
 
+        LevelLoader loader = selectLoader();
+        LevelData data = loader.load();
+
         TankModel tankModel = new TankModel(MOVEMENT_SPEED);
-        tankModel.setPosition(new GridPoint2(1, 1));
+        tankModel.setPosition(new GridPoint2(data.getPlayerStart().x, data.getPlayerStart().y));
         player = new Tank(new Texture("images/tank_blue.png"), tankModel);
         player.align(field.movement());
 
-        TreeObstacleModel treeModel = new TreeObstacleModel();
-        treeModel.setPosition(new GridPoint2(1, 3));
-        tree = new TreeObstacle(new Texture("images/greenTree.png"), treeModel);
-        tree.align(field.movement());
+        List<ru.mipt.bit.platformer.model.Obstacle> obstacleModels = new ArrayList<>();
+        for (GridPoint2 pos : data.getTreePositions()) {
+            TreeObstacleModel m = new TreeObstacleModel();
+            m.setPosition(new GridPoint2(pos.x, pos.y));
+            obstacleModels.add(m);
+            Renderable r = new TreeObstacle(new Texture("images/greenTree.png"), m);
+            r.align(field.movement());
+            obstacles.add(r);
+        }
 
-        inputHandler = new InputHandler(tankModel, treeModel);
+        inputHandler = new InputHandler(tankModel, obstacleModels);
+    }
+
+    private LevelLoader selectLoader() {
+        String mode = System.getProperty("level.mode", "");
+        if (mode.isEmpty()) {
+            String env = System.getenv("LEVEL_MODE");
+            if (env != null) {
+                mode = env;
+            }
+        }
+        if ("random".equalsIgnoreCase(mode)) {
+            return new RandomLevelGenerator(field.widthInTiles(), field.heightInTiles(), 0.2f);
+        }
+        if ("file".equalsIgnoreCase(mode)) {
+            return new FileLevelLoader("level.txt");
+        }
+        if (resourceExists("level.txt")) {
+            return new FileLevelLoader("level.txt");
+        }
+        return new RandomLevelGenerator(field.widthInTiles(), field.heightInTiles(), 0.2f);
+    }
+
+    private boolean resourceExists(String resourcePath) {
+        return GameDesktopLauncher.class.getClassLoader().getResource(resourcePath) != null;
     }
 
     @Override
@@ -56,7 +95,9 @@ public class GameDesktopLauncher implements ApplicationListener {
 
         batch.begin();
         player.render(batch);
-        tree.render(batch);
+        for (Renderable r : obstacles) {
+            r.render(batch);
+        }
         batch.end();
     }
 
@@ -74,7 +115,9 @@ public class GameDesktopLauncher implements ApplicationListener {
 
     @Override
     public void dispose() {
-        tree.dispose();
+        for (Renderable r : obstacles) {
+            r.dispose();
+        }
         player.dispose();
         field.dispose();
         batch.dispose();
