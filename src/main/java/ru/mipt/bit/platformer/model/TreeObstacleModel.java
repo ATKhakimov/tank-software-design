@@ -3,7 +3,7 @@ package ru.mipt.bit.platformer.model;
 
 import com.badlogic.gdx.math.GridPoint2;
 
-public class TreeObstacleModel {
+public class TreeObstacleModel implements Obstacle {
     private final GridPoint2 coordinates = new GridPoint2();
 
     public void setPosition(GridPoint2 position) {

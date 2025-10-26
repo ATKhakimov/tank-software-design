@@ -4,7 +4,7 @@ package ru.mipt.bit.platformer.model;
 import com.badlogic.gdx.math.GridPoint2;
 import ru.mipt.bit.platformer.Direction;
 
-public class TankModel {
+public class TankModel implements GameObject {
     private final GridPoint2 coordinates = new GridPoint2();
     private final GridPoint2 destination = new GridPoint2();
     private final float speed;

@@ -9,7 +9,7 @@ import ru.mipt.bit.platformer.model.TreeObstacleModel;
 import ru.mipt.bit.platformer.util.GdxGameUtils;
 import ru.mipt.bit.platformer.util.TileMovement;
 
-public class TreeObstacle {
+public class TreeObstacle implements Renderable {
     private final Texture texture;
     private final TextureRegion region;
     private final Rectangle rectangle;
