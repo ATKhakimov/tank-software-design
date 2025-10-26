@@ -35,4 +35,12 @@ public class GameField {
         renderer.dispose();
         map.dispose();
     }
+
+    public int widthInTiles() {
+        return groundLayer.getWidth();
+    }
+
+    public int heightInTiles() {
+        return groundLayer.getHeight();
+    }
 }
