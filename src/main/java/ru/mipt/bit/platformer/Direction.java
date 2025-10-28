@@ -41,4 +41,54 @@ public enum Direction {
     public int dy() {
         return dy;
     }
+
+    public static Direction leftOf(Direction d) {
+        switch (d) {
+            case UP: return LEFT;
+            case LEFT: return DOWN;
+            case DOWN: return RIGHT;
+            case RIGHT: return UP;
+        }
+        return d;
+    }
+
+    public static Direction rightOf(Direction d) {
+        switch (d) {
+            case UP: return RIGHT;
+            case RIGHT: return DOWN;
+            case DOWN: return LEFT;
+            case LEFT: return UP;
+        }
+        return d;
+    }
+
+    public static Direction opposite(Direction d) {
+        switch (d) {
+            case UP: return DOWN;
+            case DOWN: return UP;
+            case LEFT: return RIGHT;
+            case RIGHT: return LEFT;
+        }
+        return d;
+    }
+
+    public static Direction fromRotation(float rotation) {
+        Direction best = RIGHT;
+        float bestDiff = Math.abs(normalize(rotation) - normalize(RIGHT.rotation()));
+        for (Direction d : values()) {
+            float diff = Math.abs(normalize(rotation) - normalize(d.rotation()));
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                best = d;
+            }
+        }
+        return best;
+    }
+
+    private static float normalize(float deg) {
+        float a = deg % 360f;
+        if (a <= -180f) a += 360f;
+        if (a > 180f) a -= 360f;
+        return a;
+    }
 }

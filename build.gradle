@@ -46,4 +46,8 @@ tasks.named('run', JavaExec) {
     if (modeProp != null) {
         systemProperty 'level.mode', modeProp
     }
+    def aiProp = System.getProperty('ai')
+    if (aiProp != null) {
+        systemProperty 'ai', aiProp
+    }
 }

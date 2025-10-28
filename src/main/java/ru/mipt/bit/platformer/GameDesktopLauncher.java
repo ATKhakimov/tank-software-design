@@ -13,6 +13,9 @@ import ru.mipt.bit.platformer.level.FileLevelLoader;
 import ru.mipt.bit.platformer.level.LevelData;
 import ru.mipt.bit.platformer.level.LevelLoader;
 import ru.mipt.bit.platformer.level.RandomLevelGenerator;
+import ru.mipt.bit.platformer.ai.BotStrategy;
+import ru.mipt.bit.platformer.ai.HoldCourseStrategy;
+import ru.mipt.bit.platformer.ai.RandomStrategy;
 import ru.mipt.bit.platformer.model.MovementRules;
 import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TankModel;
@@ -93,7 +96,17 @@ public class GameDesktopLauncher implements ApplicationListener {
 
         movementRules = new MovementRules(w, h, obstacleModels);
         inputHandler = new InputHandler(tankModel, movementRules);
-        aiHandler = new AIHandler(movementRules, aiModels);
+        aiHandler = new AIHandler(movementRules, aiModels, selectStrategy());
+    }
+
+    private BotStrategy selectStrategy() {
+        String mode = System.getProperty("ai", "");
+        if (mode.isEmpty()) {
+            String env = System.getenv("AI");
+            if (env != null) mode = env;
+        }
+        if ("hold".equalsIgnoreCase(mode)) return new HoldCourseStrategy();
+        return new RandomStrategy();
     }
 
     private int readBotsCount() {
