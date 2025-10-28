@@ -36,3 +36,14 @@ tasks.withType(JavaCompile) {
 test {
     useJUnitPlatform()
 }
+
+tasks.named('run', JavaExec) {
+    def botsProp = System.getProperty('bots')
+    if (botsProp != null) {
+        systemProperty 'bots', botsProp
+    }
+    def modeProp = System.getProperty('level.mode')
+    if (modeProp != null) {
+        systemProperty 'level.mode', modeProp
+    }
+}

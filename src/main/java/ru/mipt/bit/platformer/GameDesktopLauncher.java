@@ -13,11 +13,16 @@ import ru.mipt.bit.platformer.level.FileLevelLoader;
 import ru.mipt.bit.platformer.level.LevelData;
 import ru.mipt.bit.platformer.level.LevelLoader;
 import ru.mipt.bit.platformer.level.RandomLevelGenerator;
+import ru.mipt.bit.platformer.model.MovementRules;
+import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TankModel;
 import ru.mipt.bit.platformer.model.TreeObstacleModel;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
+import java.util.Set;
 
 import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
 
@@ -29,7 +34,11 @@ public class GameDesktopLauncher implements ApplicationListener {
     private GameField field;
     private Tank player;
     private final List<Renderable> obstacles = new ArrayList<>();
+    private final List<Tank> aiTanks = new ArrayList<>();
+    private final List<TankModel> aiModels = new ArrayList<>();
     private InputHandler inputHandler;
+    private AIHandler aiHandler;
+    private MovementRules movementRules;
 
     @Override
     public void create() {
@@ -44,7 +53,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         player = new Tank(new Texture("images/tank_blue.png"), tankModel);
         player.align(field.movement());
 
-        List<ru.mipt.bit.platformer.model.Obstacle> obstacleModels = new ArrayList<>();
+        List<Obstacle> obstacleModels = new ArrayList<>();
         for (GridPoint2 pos : data.getTreePositions()) {
             TreeObstacleModel m = new TreeObstacleModel();
             m.setPosition(new GridPoint2(pos.x, pos.y));
@@ -54,7 +63,52 @@ public class GameDesktopLauncher implements ApplicationListener {
             obstacles.add(r);
         }
 
-        inputHandler = new InputHandler(tankModel, obstacleModels);
+        
+        int w = field.widthInTiles();
+        int h = field.heightInTiles();
+        Set<GridPoint2> forbidden = new HashSet<>();
+        forbidden.add(new GridPoint2(tankModel.getCoordinates()));
+        for (Obstacle o : obstacleModels) {
+            forbidden.add(new GridPoint2(o.getCoordinates()));
+        }
+        List<GridPoint2> free = new ArrayList<>();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                GridPoint2 p = new GridPoint2(x, y);
+                if (!forbidden.contains(p)) free.add(p);
+            }
+        }
+        int aiCount = Math.min(readBotsCount(), free.size());
+        Random rnd = new Random();
+        for (int i = 0; i < aiCount; i++) {
+            int idx = rnd.nextInt(free.size());
+            GridPoint2 p = free.remove(idx);
+            TankModel ai = new TankModel(MOVEMENT_SPEED);
+            ai.setPosition(new GridPoint2(p));
+            aiModels.add(ai);
+            Tank aiRenderable = new Tank(new Texture("images/tank_blue.png"), ai);
+            aiRenderable.align(field.movement());
+            aiTanks.add(aiRenderable);
+        }
+
+        movementRules = new MovementRules(w, h, obstacleModels);
+        inputHandler = new InputHandler(tankModel, movementRules);
+        aiHandler = new AIHandler(movementRules, aiModels);
+    }
+
+    private int readBotsCount() {
+        String val = System.getProperty("bots");
+        if (val == null) {
+            val = System.getenv("BOTS");
+        }
+        int def = 3;
+        if (val == null || val.isEmpty()) return def;
+        try {
+            int n = Integer.parseInt(val.trim());
+            return Math.max(0, n);
+        } catch (NumberFormatException e) {
+            return def;
+        }
     }
 
     private LevelLoader selectLoader() {
@@ -88,8 +142,20 @@ public class GameDesktopLauncher implements ApplicationListener {
 
         float deltaTime = Gdx.graphics.getDeltaTime();
 
+        
+    Set<GridPoint2> occupied = computeOccupied();
+    Set<GridPoint2> reserved = computeReserved();
+    movementRules.setOccupied(occupied, reserved);
+
+    
         inputHandler.handle();
+        aiHandler.handle();
+
+       
         player.update(field.movement(), deltaTime);
+        for (Tank t : aiTanks) {
+            t.update(field.movement(), deltaTime);
+        }
 
         field.render();
 
@@ -98,7 +164,36 @@ public class GameDesktopLauncher implements ApplicationListener {
         for (Renderable r : obstacles) {
             r.render(batch);
         }
+        for (Tank t : aiTanks) {
+            t.render(batch);
+        }
         batch.end();
+    }
+
+    private Set<GridPoint2> computeOccupied() {
+        Set<GridPoint2> occ = new HashSet<>();
+        addCurrentCells(occ, player);
+        for (Tank t : aiTanks) addCurrentCells(occ, t);
+        return occ;
+    }
+
+    private Set<GridPoint2> computeReserved() {
+        Set<GridPoint2> res = new HashSet<>();
+        addMovingReservations(res, player);
+        for (Tank t : aiTanks) addMovingReservations(res, t);
+        return res;
+    }
+
+    private void addCurrentCells(Set<GridPoint2> set, Tank t) {
+        GridPoint2 from = t.getModel().getCoordinates();
+        set.add(new GridPoint2(from));
+    }
+
+    private void addMovingReservations(Set<GridPoint2> set, Tank t) {
+        if (!t.getModel().isReady()) {
+            set.add(new GridPoint2(t.getModel().getCoordinates()));
+            set.add(new GridPoint2(t.getModel().getDestination()));
+        }
     }
 
     @Override
@@ -117,6 +212,9 @@ public class GameDesktopLauncher implements ApplicationListener {
     public void dispose() {
         for (Renderable r : obstacles) {
             r.dispose();
+        }
+        for (Tank t : aiTanks) {
+            t.dispose();
         }
         player.dispose();
         field.dispose();

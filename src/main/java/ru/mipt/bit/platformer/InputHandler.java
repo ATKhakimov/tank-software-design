@@ -4,6 +4,7 @@ package ru.mipt.bit.platformer;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.GridPoint2;
+import ru.mipt.bit.platformer.model.MovementRules;
 import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TankModel;
 
@@ -16,18 +17,24 @@ public class InputHandler {
     public InputHandler(TankModel tank, Obstacle obstacle) {
         List<Obstacle> list = new ArrayList<>();
         list.add(obstacle);
-        initCommands(tank, list);
+        MovementRules rules = new MovementRules(Integer.MAX_VALUE, Integer.MAX_VALUE, list);
+        initCommands(tank, rules);
     }
 
     public InputHandler(TankModel tank, List<Obstacle> obstacles) {
-        initCommands(tank, obstacles);
+        MovementRules rules = new MovementRules(Integer.MAX_VALUE, Integer.MAX_VALUE, obstacles);
+        initCommands(tank, rules);
     }
 
-    private void initCommands(TankModel tank, List<Obstacle> obstacles) {
-        commands.add(new MoveCommand(tank, obstacles, Direction.UP, Input.Keys.UP, Input.Keys.W));
-        commands.add(new MoveCommand(tank, obstacles, Direction.LEFT, Input.Keys.LEFT, Input.Keys.A));
-        commands.add(new MoveCommand(tank, obstacles, Direction.DOWN, Input.Keys.DOWN, Input.Keys.S));
-        commands.add(new MoveCommand(tank, obstacles, Direction.RIGHT, Input.Keys.RIGHT, Input.Keys.D));
+    public InputHandler(TankModel tank, MovementRules rules) {
+        initCommands(tank, rules);
+    }
+
+    private void initCommands(TankModel tank, MovementRules rules) {
+        commands.add(new MoveCommand(tank, rules, Direction.UP, Input.Keys.UP, Input.Keys.W));
+        commands.add(new MoveCommand(tank, rules, Direction.LEFT, Input.Keys.LEFT, Input.Keys.A));
+        commands.add(new MoveCommand(tank, rules, Direction.DOWN, Input.Keys.DOWN, Input.Keys.S));
+        commands.add(new MoveCommand(tank, rules, Direction.RIGHT, Input.Keys.RIGHT, Input.Keys.D));
         commands.add(new ShootCommand(tank, Input.Keys.SPACE));
     }
 
@@ -43,14 +50,14 @@ public class InputHandler {
 
     private static class MoveCommand implements InputCommand {
         private final TankModel tank;
-        private final List<Obstacle> obstacles;
+        private final MovementRules rules;
         private final Direction direction;
         private final int primaryKey;
         private final int secondaryKey;
 
-        MoveCommand(TankModel tank, List<Obstacle> obstacles, Direction direction, int primaryKey, int secondaryKey) {
+        MoveCommand(TankModel tank, MovementRules rules, Direction direction, int primaryKey, int secondaryKey) {
             this.tank = tank;
-            this.obstacles = obstacles;
+            this.rules = rules;
             this.direction = direction;
             this.primaryKey = primaryKey;
             this.secondaryKey = secondaryKey;
@@ -61,23 +68,8 @@ public class InputHandler {
             if (!Gdx.input.isKeyPressed(primaryKey) && !Gdx.input.isKeyPressed(secondaryKey)) {
                 return;
             }
-            if (tank.isReady()) {
-                boolean blocked = false;
-                GridPoint2 target = direction.apply(tank.getCoordinates());
-                for (Obstacle o : obstacles) {
-                    if (o.occupies(target)) {
-                        blocked = true;
-                        break;
-                    }
-                }
-                if (blocked) {
-                    tank.face(direction);
-                } else {
-                    tank.start(direction);
-                }
-            } else {
-                tank.face(direction);
-            }
+        
+            rules.attemptStartOrFace(tank, direction);
         }
     }
 
