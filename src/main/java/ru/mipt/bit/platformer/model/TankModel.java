@@ -10,6 +10,7 @@ public class TankModel implements GameObject {
     private final float speed;
     private float progress = 1f;
     private float rotation = 0f;
+    private float health = 1f;
 
     public TankModel(float speed) {
         this.speed = speed;
@@ -64,5 +65,13 @@ public class TankModel implements GameObject {
 
     public float getSpeed() {
         return speed;
+    }
+
+    public float getHealth() {
+        return health;
+    }
+
+    public void setHealth(float health) {
+        this.health = Math.max(0f, Math.min(1f, health));
     }
 }

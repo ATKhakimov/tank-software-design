@@ -30,6 +30,11 @@ public class InputHandler {
         initCommands(tank, rules);
     }
 
+    public InputHandler(TankModel tank, MovementRules rules, HealthBarsController healthBarsController) {
+        initCommands(tank, rules);
+        commands.add(new ToggleHealthBarsCommand(healthBarsController, Input.Keys.L));
+    }
+
     private void initCommands(TankModel tank, MovementRules rules) {
         commands.add(new MoveCommand(tank, rules, Direction.UP, Input.Keys.UP, Input.Keys.W));
         commands.add(new MoveCommand(tank, rules, Direction.LEFT, Input.Keys.LEFT, Input.Keys.A));
@@ -89,6 +94,26 @@ public class InputHandler {
             if (isPressed && !wasPressed) {
                 GridPoint2 pos = tank.getCoordinates();
                 System.out.println("Tank shoots from (" + pos.x + ", " + pos.y + ") at rotation: " + tank.getRotation());
+            }
+            wasPressed = isPressed;
+        }
+    }
+
+    private static class ToggleHealthBarsCommand implements InputCommand {
+        private final HealthBarsController controller;
+        private final int key;
+        private boolean wasPressed = false;
+
+        ToggleHealthBarsCommand(HealthBarsController controller, int key) {
+            this.controller = controller;
+            this.key = key;
+        }
+
+        @Override
+        public void execute() {
+            boolean isPressed = Gdx.input.isKeyPressed(key);
+            if (isPressed && !wasPressed) {
+                controller.toggle();
             }
             wasPressed = isPressed;
         }

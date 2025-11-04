@@ -38,10 +38,13 @@ public class GameDesktopLauncher implements ApplicationListener {
     private Tank player;
     private final List<Renderable> obstacles = new ArrayList<>();
     private final List<Tank> aiTanks = new ArrayList<>();
+    private Renderable playerWithHealth;
+    private final List<Renderable> aiTanksWithHealth = new ArrayList<>();
     private final List<TankModel> aiModels = new ArrayList<>();
     private InputHandler inputHandler;
     private AIHandler aiHandler;
     private MovementRules movementRules;
+    private HealthBarsController healthBarsController;
 
     @Override
     public void create() {
@@ -53,8 +56,10 @@ public class GameDesktopLauncher implements ApplicationListener {
 
         TankModel tankModel = new TankModel(MOVEMENT_SPEED);
         tankModel.setPosition(new GridPoint2(data.getPlayerStart().x, data.getPlayerStart().y));
-        player = new Tank(new Texture("images/tank_blue.png"), tankModel);
+    player = new Tank(new Texture("images/tank_blue.png"), tankModel);
         player.align(field.movement());
+    playerWithHealth = new HealthBarTank(player, tankModel);
+    playerWithHealth.align(field.movement());
 
         List<Obstacle> obstacleModels = new ArrayList<>();
         for (GridPoint2 pos : data.getTreePositions()) {
@@ -92,10 +97,14 @@ public class GameDesktopLauncher implements ApplicationListener {
             Tank aiRenderable = new Tank(new Texture("images/tank_blue.png"), ai);
             aiRenderable.align(field.movement());
             aiTanks.add(aiRenderable);
+            Renderable decorated = new HealthBarTank(aiRenderable, ai);
+            decorated.align(field.movement());
+            aiTanksWithHealth.add(decorated);
         }
 
         movementRules = new MovementRules(w, h, obstacleModels);
-        inputHandler = new InputHandler(tankModel, movementRules);
+        healthBarsController = new HealthBarsControllerImpl();
+        inputHandler = new InputHandler(tankModel, movementRules, healthBarsController);
         aiHandler = new AIHandler(movementRules, aiModels, selectStrategy());
     }
 
@@ -173,12 +182,22 @@ public class GameDesktopLauncher implements ApplicationListener {
         field.render();
 
         batch.begin();
-        player.render(batch);
+        if (healthBarsController != null && healthBarsController.isEnabled()) {
+            playerWithHealth.render(batch);
+        } else {
+            player.render(batch);
+        }
         for (Renderable r : obstacles) {
             r.render(batch);
         }
-        for (Tank t : aiTanks) {
-            t.render(batch);
+        if (healthBarsController != null && healthBarsController.isEnabled()) {
+            for (Renderable t : aiTanksWithHealth) {
+                t.render(batch);
+            }
+        } else {
+            for (Tank t : aiTanks) {
+                t.render(batch);
+            }
         }
         batch.end();
     }
