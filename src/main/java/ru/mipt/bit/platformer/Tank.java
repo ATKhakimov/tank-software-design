@@ -35,6 +35,10 @@ public class Tank implements Renderable {
         GdxGameUtils.drawTextureRegionUnscaled(batch, region, rectangle, model.getRotation());
     }
 
+    public Rectangle getBounds() {
+        return rectangle;
+    }
+    
     public void align(TileMovement movement) {
         movement.moveRectangleBetweenTileCenters(rectangle, model.getCoordinates(), model.getDestination(), 1f);
     }
