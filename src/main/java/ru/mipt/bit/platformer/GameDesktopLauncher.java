@@ -17,6 +17,12 @@ import ru.mipt.bit.platformer.ai.BotStrategy;
 import ru.mipt.bit.platformer.ai.HoldCourseStrategy;
 import ru.mipt.bit.platformer.ai.RandomStrategy;
 import ru.mipt.bit.platformer.model.MovementRules;
+import ru.mipt.bit.platformer.model.WorldModel;
+import ru.mipt.bit.platformer.model.WorldObserver;
+import ru.mipt.bit.platformer.model.BulletModel;
+import ru.mipt.bit.platformer.model.GameObject;
+import ru.mipt.bit.platformer.model.Obstacle;
+import ru.mipt.bit.platformer.model.TreeObstacleModel;
 import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TankModel;
 import ru.mipt.bit.platformer.model.TreeObstacleModel;
@@ -29,22 +35,24 @@ import java.util.Set;
 
 import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
 
-public class GameDesktopLauncher implements ApplicationListener {
+public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
 
     private static final float MOVEMENT_SPEED = 0.4f;
 
     private Batch batch;
     private GameField field;
     private Tank player;
+    private Renderable playerWithHealth;
     private final List<Renderable> obstacles = new ArrayList<>();
     private final List<Tank> aiTanks = new ArrayList<>();
-    private Renderable playerWithHealth;
     private final List<Renderable> aiTanksWithHealth = new ArrayList<>();
+    private final List<Renderable> bullets = new ArrayList<>();
     private final List<TankModel> aiModels = new ArrayList<>();
     private InputHandler inputHandler;
     private AIHandler aiHandler;
     private MovementRules movementRules;
     private HealthBarsController healthBarsController;
+    private WorldModel world;
 
     @Override
     public void create() {
@@ -54,21 +62,18 @@ public class GameDesktopLauncher implements ApplicationListener {
         LevelLoader loader = selectLoader();
         LevelData data = loader.load();
 
+        world = new WorldModel(field.widthInTiles(), field.heightInTiles(), 0.05f, 0.25f);
+        world.addObserver(this);
         TankModel tankModel = new TankModel(MOVEMENT_SPEED);
         tankModel.setPosition(new GridPoint2(data.getPlayerStart().x, data.getPlayerStart().y));
-    player = new Tank(new Texture("images/tank_blue.png"), tankModel);
-        player.align(field.movement());
-    playerWithHealth = new HealthBarTank(player, tankModel);
-    playerWithHealth.align(field.movement());
+        world.addTank(tankModel);
 
         List<Obstacle> obstacleModels = new ArrayList<>();
         for (GridPoint2 pos : data.getTreePositions()) {
             TreeObstacleModel m = new TreeObstacleModel();
             m.setPosition(new GridPoint2(pos.x, pos.y));
             obstacleModels.add(m);
-            Renderable r = new TreeObstacle(new Texture("images/greenTree.png"), m);
-            r.align(field.movement());
-            obstacles.add(r);
+            world.addObstacle(m);
         }
 
         
@@ -93,19 +98,15 @@ public class GameDesktopLauncher implements ApplicationListener {
             GridPoint2 p = free.remove(idx);
             TankModel ai = new TankModel(MOVEMENT_SPEED);
             ai.setPosition(new GridPoint2(p));
+            world.addTank(ai);
             aiModels.add(ai);
-            Tank aiRenderable = new Tank(new Texture("images/tank_blue.png"), ai);
-            aiRenderable.align(field.movement());
-            aiTanks.add(aiRenderable);
-            Renderable decorated = new HealthBarTank(aiRenderable, ai);
-            decorated.align(field.movement());
-            aiTanksWithHealth.add(decorated);
         }
 
         movementRules = new MovementRules(w, h, obstacleModels);
         healthBarsController = new HealthBarsControllerImpl();
         inputHandler = new InputHandler(tankModel, movementRules, healthBarsController);
-        aiHandler = new AIHandler(movementRules, aiModels, selectStrategy());
+        inputHandler.setShooter(world);
+        aiHandler = new AIHandler(movementRules, aiModels, selectStrategy(), world);
     }
 
     private BotStrategy selectStrategy() {
@@ -175,18 +176,18 @@ public class GameDesktopLauncher implements ApplicationListener {
 
        
         player.update(field.movement(), deltaTime);
-        for (Tank t : aiTanks) {
-            t.update(field.movement(), deltaTime);
+        for (Tank t : aiTanks) t.update(field.movement(), deltaTime);
+        world.tick(deltaTime);
+        for (Renderable b : bullets) {
+            if (b instanceof BulletRenderable) {
+                ((BulletRenderable) b).update(field.movement());
+            }
         }
 
         field.render();
 
         batch.begin();
-        if (healthBarsController != null && healthBarsController.isEnabled()) {
-            playerWithHealth.render(batch);
-        } else {
-            player.render(batch);
-        }
+        if (healthBarsController != null && healthBarsController.isEnabled() && playerWithHealth != null) playerWithHealth.render(batch); else player.render(batch);
         for (Renderable r : obstacles) {
             r.render(batch);
         }
@@ -199,6 +200,7 @@ public class GameDesktopLauncher implements ApplicationListener {
                 t.render(batch);
             }
         }
+        for (Renderable b : bullets) b.render(batch);
         batch.end();
     }
 
@@ -257,5 +259,75 @@ public class GameDesktopLauncher implements ApplicationListener {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setWindowedMode(1280, 1024);
         new Lwjgl3Application(new GameDesktopLauncher(), config);
+    }
+
+    @Override
+    public void objectAdded(GameObject object) {
+        if (object instanceof TankModel) {
+            TankModel tm = (TankModel) object;
+            Tank tank = new Tank(new Texture("images/tank_blue.png"), tm);
+            tank.align(field.movement());
+            if (player == null) {
+                player = tank;
+                playerWithHealth = new HealthBarTank(player, tm);
+                playerWithHealth.align(field.movement());
+            } else {
+                aiTanks.add(tank);
+                Renderable decorated = new HealthBarTank(tank, tm);
+                decorated.align(field.movement());
+                aiTanksWithHealth.add(decorated);
+            }
+        } else if (object instanceof Obstacle) {
+            Obstacle o = (Obstacle) object;
+            if (o instanceof TreeObstacleModel) {
+                TreeObstacleModel tm = (TreeObstacleModel) o;
+                Renderable r = new TreeObstacle(new Texture("images/greenTree.png"), tm);
+                r.align(field.movement());
+                obstacles.add(r);
+            }
+        } else if (object instanceof BulletModel) {
+            BulletModel bm = (BulletModel) object;
+            BulletRenderable br = new BulletRenderable(bm);
+            br.align(field.movement());
+            bullets.add(br);
+        }
+    }
+
+    @Override
+    public void objectRemoved(GameObject object) {
+        if (object instanceof TankModel) {
+            TankModel tm = (TankModel) object;
+            if (player != null && player.getModel() == tm) {
+                player = null;
+                playerWithHealth = null;
+            } else {
+                for (int i = 0; i < aiTanks.size(); i++) {
+                    if (aiTanks.get(i).getModel() == tm) {
+                        aiTanks.get(i).dispose();
+                        aiTanks.remove(i);
+                        aiTanksWithHealth.remove(i);
+                        break;
+                    }
+                }
+            }
+        } else if (object instanceof Obstacle) {
+            for (int i = 0; i < obstacles.size(); i++) {
+                Renderable r = obstacles.get(i);
+                if (r instanceof TreeObstacle) {
+                    // no direct link; skip removal for simplicity
+                }
+            }
+        } else if (object instanceof BulletModel) {
+            for (int i = 0; i < bullets.size(); i++) {
+                Renderable r = bullets.get(i);
+                if (r instanceof BulletRenderable) {
+                    BulletRenderable br = (BulletRenderable) r;
+                    if (br.getModel() == object) {
+                        bullets.remove(i);
+                        break;
+                    }
+                }
+            }
+        }
     }
 }

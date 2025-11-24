@@ -5,6 +5,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.GridPoint2;
 import ru.mipt.bit.platformer.model.MovementRules;
+import ru.mipt.bit.platformer.model.Shooter;
 import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TankModel;
 
@@ -33,6 +34,14 @@ public class InputHandler {
     public InputHandler(TankModel tank, MovementRules rules, HealthBarsController healthBarsController) {
         initCommands(tank, rules);
         commands.add(new ToggleHealthBarsCommand(healthBarsController, Input.Keys.L));
+    }
+
+    public void setShooter(Shooter shooter) {
+        for (InputCommand command : commands) {
+            if (command instanceof ShootCommand) {
+                ((ShootCommand) command).setShooter(shooter);
+            }
+        }
     }
 
     private void initCommands(TankModel tank, MovementRules rules) {
@@ -82,18 +91,23 @@ public class InputHandler {
         private final TankModel tank;
         private final int key;
         private boolean wasPressed = false;
+        private Shooter shooter;
 
         ShootCommand(TankModel tank, int key) {
             this.tank = tank;
             this.key = key;
         }
 
+        public void setShooter(Shooter shooter) {
+            this.shooter = shooter;
+        }
+
         @Override
         public void execute() {
+            if (shooter == null) return;
             boolean isPressed = Gdx.input.isKeyPressed(key);
             if (isPressed && !wasPressed) {
-                GridPoint2 pos = tank.getCoordinates();
-                System.out.println("Tank shoots from (" + pos.x + ", " + pos.y + ") at rotation: " + tank.getRotation());
+                shooter.shoot(tank);
             }
             wasPressed = isPressed;
         }
