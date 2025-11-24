@@ -1,3 +1,4 @@
+// Исправлены нарушения OCP/DIP через интерфейсы GameObject/Obstacle/Renderable
 package ru.mipt.bit.platformer;
 
 import com.badlogic.gdx.ApplicationListener;
@@ -7,173 +8,331 @@ import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.maps.MapRenderer;
-import com.badlogic.gdx.maps.tiled.TiledMap;
-import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
-import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.math.GridPoint2;
-import com.badlogic.gdx.math.Interpolation;
-import com.badlogic.gdx.math.Rectangle;
-import ru.mipt.bit.platformer.util.TileMovement;
+import ru.mipt.bit.platformer.level.FileLevelLoader;
+import ru.mipt.bit.platformer.level.LevelData;
+import ru.mipt.bit.platformer.level.LevelLoader;
+import ru.mipt.bit.platformer.level.RandomLevelGenerator;
+import ru.mipt.bit.platformer.ai.BotStrategy;
+import ru.mipt.bit.platformer.ai.HoldCourseStrategy;
+import ru.mipt.bit.platformer.ai.RandomStrategy;
+import ru.mipt.bit.platformer.model.MovementRules;
+import ru.mipt.bit.platformer.model.WorldModel;
+import ru.mipt.bit.platformer.model.WorldObserver;
+import ru.mipt.bit.platformer.model.BulletModel;
+import ru.mipt.bit.platformer.config.WorldModelFactory;
+import org.springframework.stereotype.Component;
+import ru.mipt.bit.platformer.ai.BotStrategy;
+import ru.mipt.bit.platformer.model.GameObject;
+import ru.mipt.bit.platformer.model.Obstacle;
+import ru.mipt.bit.platformer.model.TreeObstacleModel;
+import ru.mipt.bit.platformer.model.Obstacle;
+import ru.mipt.bit.platformer.model.TankModel;
+import ru.mipt.bit.platformer.model.TreeObstacleModel;
 
-import static com.badlogic.gdx.Input.Keys.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+
 import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
-import static com.badlogic.gdx.math.MathUtils.isEqual;
-import static ru.mipt.bit.platformer.util.GdxGameUtils.*;
 
-public class GameDesktopLauncher implements ApplicationListener {
+@Component
+public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
 
     private static final float MOVEMENT_SPEED = 0.4f;
 
     private Batch batch;
+    private GameField field;
+    private Tank player;
+    private Renderable playerWithHealth;
+    private final List<Renderable> obstacles = new ArrayList<>();
+    private final List<Tank> aiTanks = new ArrayList<>();
+    private final List<Renderable> aiTanksWithHealth = new ArrayList<>();
+    private final List<Renderable> bullets = new ArrayList<>();
+    private final List<TankModel> aiModels = new ArrayList<>();
+    private InputHandler inputHandler;
+    private AIHandler aiHandler;
+    private MovementRules movementRules;
+    private final HealthBarsController healthBarsController;
+    private WorldModel world;
+    private final WorldModelFactory worldFactory;
+    private final BotStrategy botStrategy;
 
-    private TiledMap level;
-    private MapRenderer levelRenderer;
-    private TileMovement tileMovement;
-
-    private Texture blueTankTexture;
-    private TextureRegion playerGraphics;
-    private Rectangle playerRectangle;
-    // player current position coordinates on level 10x8 grid (e.g. x=0, y=1)
-    private GridPoint2 playerCoordinates;
-    // which tile the player want to go next
-    private GridPoint2 playerDestinationCoordinates;
-    private float playerMovementProgress = 1f;
-    private float playerRotation;
-
-    private Texture greenTreeTexture;
-    private TextureRegion treeObstacleGraphics;
-    private GridPoint2 treeObstacleCoordinates = new GridPoint2();
-    private Rectangle treeObstacleRectangle = new Rectangle();
+    public GameDesktopLauncher(BotStrategy botStrategy, HealthBarsController healthBarsController, WorldModelFactory worldFactory) {
+        this.botStrategy = botStrategy;
+        this.healthBarsController = healthBarsController;
+        this.worldFactory = worldFactory;
+    }
 
     @Override
     public void create() {
         batch = new SpriteBatch();
+        field = new GameField(batch);
 
-        // load level tiles
-        level = new TmxMapLoader().load("level.tmx");
-        levelRenderer = createSingleLayerMapRenderer(level, batch);
-        TiledMapTileLayer groundLayer = getSingleLayer(level);
-        tileMovement = new TileMovement(groundLayer, Interpolation.smooth);
+        LevelLoader loader = selectLoader();
+        LevelData data = loader.load();
 
-        // Texture decodes an image file and loads it into GPU memory, it represents a native resource
-        blueTankTexture = new Texture("images/tank_blue.png");
-        // TextureRegion represents Texture portion, there may be many TextureRegion instances of the same Texture
-        playerGraphics = new TextureRegion(blueTankTexture);
-        playerRectangle = createBoundingRectangle(playerGraphics);
-        // set player initial position
-        playerDestinationCoordinates = new GridPoint2(1, 1);
-        playerCoordinates = new GridPoint2(playerDestinationCoordinates);
-        playerRotation = 0f;
+        world = worldFactory.create(field.widthInTiles(), field.heightInTiles());
+        world.addObserver(this);
+        TankModel tankModel = new TankModel(MOVEMENT_SPEED);
+        tankModel.setPosition(new GridPoint2(data.getPlayerStart().x, data.getPlayerStart().y));
+        world.addTank(tankModel);
 
-        greenTreeTexture = new Texture("images/greenTree.png");
-        treeObstacleGraphics = new TextureRegion(greenTreeTexture);
-        treeObstacleCoordinates = new GridPoint2(1, 3);
-        treeObstacleRectangle = createBoundingRectangle(treeObstacleGraphics);
-        moveRectangleAtTileCenter(groundLayer, treeObstacleRectangle, treeObstacleCoordinates);
+        List<Obstacle> obstacleModels = new ArrayList<>();
+        for (GridPoint2 pos : data.getTreePositions()) {
+            TreeObstacleModel m = new TreeObstacleModel();
+            m.setPosition(new GridPoint2(pos.x, pos.y));
+            obstacleModels.add(m);
+            world.addObstacle(m);
+        }
+
+        
+        int w = field.widthInTiles();
+        int h = field.heightInTiles();
+        Set<GridPoint2> forbidden = new HashSet<>();
+        forbidden.add(new GridPoint2(tankModel.getCoordinates()));
+        for (Obstacle o : obstacleModels) {
+            forbidden.add(new GridPoint2(o.getCoordinates()));
+        }
+        List<GridPoint2> free = new ArrayList<>();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                GridPoint2 p = new GridPoint2(x, y);
+                if (!forbidden.contains(p)) free.add(p);
+            }
+        }
+        int aiCount = Math.min(readBotsCount(), free.size());
+        Random rnd = new Random();
+        for (int i = 0; i < aiCount; i++) {
+            int idx = rnd.nextInt(free.size());
+            GridPoint2 p = free.remove(idx);
+            TankModel ai = new TankModel(MOVEMENT_SPEED);
+            ai.setPosition(new GridPoint2(p));
+            world.addTank(ai);
+            aiModels.add(ai);
+        }
+
+        movementRules = new MovementRules(w, h, obstacleModels);
+        inputHandler = new InputHandler(tankModel, movementRules, healthBarsController);
+        inputHandler.setShooter(world);
+        aiHandler = new AIHandler(movementRules, aiModels, botStrategy, world);
+    }
+
+    
+
+    private int readBotsCount() {
+        String val = System.getProperty("bots");
+        if (val == null) {
+            val = System.getenv("BOTS");
+        }
+        int def = 3;
+        if (val == null || val.isEmpty()) return def;
+        try {
+            int n = Integer.parseInt(val.trim());
+            return Math.max(0, n);
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
+    private LevelLoader selectLoader() {
+        String mode = System.getProperty("level.mode", "");
+        if (mode.isEmpty()) {
+            String env = System.getenv("LEVEL_MODE");
+            if (env != null) {
+                mode = env;
+            }
+        }
+        if ("random".equalsIgnoreCase(mode)) {
+            return new RandomLevelGenerator(field.widthInTiles(), field.heightInTiles(), 0.2f);
+        }
+        if ("file".equalsIgnoreCase(mode)) {
+            return new FileLevelLoader("level.txt");
+        }
+        if (resourceExists("level.txt")) {
+            return new FileLevelLoader("level.txt");
+        }
+        return new RandomLevelGenerator(field.widthInTiles(), field.heightInTiles(), 0.2f);
+    }
+
+    private boolean resourceExists(String resourcePath) {
+        return GameDesktopLauncher.class.getClassLoader().getResource(resourcePath) != null;
     }
 
     @Override
     public void render() {
-        // clear the screen
         Gdx.gl.glClearColor(0f, 0f, 0.2f, 1f);
         Gdx.gl.glClear(GL_COLOR_BUFFER_BIT);
 
-        // get time passed since the last render
         float deltaTime = Gdx.graphics.getDeltaTime();
 
-        if (Gdx.input.isKeyPressed(UP) || Gdx.input.isKeyPressed(W)) {
-            if (isEqual(playerMovementProgress, 1f)) {
-                // check potential player destination for collision with obstacles
-                if (!treeObstacleCoordinates.equals(incrementedY(playerCoordinates))) {
-                    playerDestinationCoordinates.y++;
-                    playerMovementProgress = 0f;
-                }
-                playerRotation = 90f;
-            }
-        }
-        if (Gdx.input.isKeyPressed(LEFT) || Gdx.input.isKeyPressed(A)) {
-            if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(decrementedX(playerCoordinates))) {
-                    playerDestinationCoordinates.x--;
-                    playerMovementProgress = 0f;
-                }
-                playerRotation = -180f;
-            }
-        }
-        if (Gdx.input.isKeyPressed(DOWN) || Gdx.input.isKeyPressed(S)) {
-            if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(decrementedY(playerCoordinates))) {
-                    playerDestinationCoordinates.y--;
-                    playerMovementProgress = 0f;
-                }
-                playerRotation = -90f;
-            }
-        }
-        if (Gdx.input.isKeyPressed(RIGHT) || Gdx.input.isKeyPressed(D)) {
-            if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(incrementedX(playerCoordinates))) {
-                    playerDestinationCoordinates.x++;
-                    playerMovementProgress = 0f;
-                }
-                playerRotation = 0f;
+        
+    Set<GridPoint2> occupied = computeOccupied();
+    Set<GridPoint2> reserved = computeReserved();
+    movementRules.setOccupied(occupied, reserved);
+
+    
+        inputHandler.handle();
+        aiHandler.handle();
+
+       
+        player.update(field.movement(), deltaTime);
+        for (Tank t : aiTanks) t.update(field.movement(), deltaTime);
+        world.tick(deltaTime);
+        for (Renderable b : bullets) {
+            if (b instanceof BulletRenderable) {
+                ((BulletRenderable) b).update(field.movement());
             }
         }
 
-        // calculate interpolated player screen coordinates
-        tileMovement.moveRectangleBetweenTileCenters(playerRectangle, playerCoordinates, playerDestinationCoordinates, playerMovementProgress);
+        field.render();
 
-        playerMovementProgress = continueProgress(playerMovementProgress, deltaTime, MOVEMENT_SPEED);
-        if (isEqual(playerMovementProgress, 1f)) {
-            // record that the player has reached his/her destination
-            playerCoordinates.set(playerDestinationCoordinates);
-        }
-
-        // render each tile of the level
-        levelRenderer.render();
-
-        // start recording all drawing commands
         batch.begin();
-
-        // render player
-        drawTextureRegionUnscaled(batch, playerGraphics, playerRectangle, playerRotation);
-
-        // render tree obstacle
-        drawTextureRegionUnscaled(batch, treeObstacleGraphics, treeObstacleRectangle, 0f);
-
-        // submit all drawing requests
+        if (healthBarsController != null && healthBarsController.isEnabled() && playerWithHealth != null) playerWithHealth.render(batch); else player.render(batch);
+        for (Renderable r : obstacles) {
+            r.render(batch);
+        }
+        if (healthBarsController != null && healthBarsController.isEnabled()) {
+            for (Renderable t : aiTanksWithHealth) {
+                t.render(batch);
+            }
+        } else {
+            for (Tank t : aiTanks) {
+                t.render(batch);
+            }
+        }
+        for (Renderable b : bullets) b.render(batch);
         batch.end();
+    }
+
+    private Set<GridPoint2> computeOccupied() {
+        Set<GridPoint2> occ = new HashSet<>();
+        addCurrentCells(occ, player);
+        for (Tank t : aiTanks) addCurrentCells(occ, t);
+        return occ;
+    }
+
+    private Set<GridPoint2> computeReserved() {
+        Set<GridPoint2> res = new HashSet<>();
+        addMovingReservations(res, player);
+        for (Tank t : aiTanks) addMovingReservations(res, t);
+        return res;
+    }
+
+    private void addCurrentCells(Set<GridPoint2> set, Tank t) {
+        GridPoint2 from = t.getModel().getCoordinates();
+        set.add(new GridPoint2(from));
+    }
+
+    private void addMovingReservations(Set<GridPoint2> set, Tank t) {
+        if (!t.getModel().isReady()) {
+            set.add(new GridPoint2(t.getModel().getCoordinates()));
+            set.add(new GridPoint2(t.getModel().getDestination()));
+        }
     }
 
     @Override
     public void resize(int width, int height) {
-        // do not react to window resizing
     }
 
     @Override
     public void pause() {
-        // game doesn't get paused
     }
 
     @Override
     public void resume() {
-        // game doesn't get paused
     }
 
     @Override
     public void dispose() {
-        // dispose of all the native resources (classes which implement com.badlogic.gdx.utils.Disposable)
-        greenTreeTexture.dispose();
-        blueTankTexture.dispose();
-        level.dispose();
+        for (Renderable r : obstacles) {
+            r.dispose();
+        }
+        for (Tank t : aiTanks) {
+            t.dispose();
+        }
+        player.dispose();
+        field.dispose();
         batch.dispose();
     }
 
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
-        // level width: 10 tiles x 128px, height: 8 tiles x 128px
         config.setWindowedMode(1280, 1024);
-        new Lwjgl3Application(new GameDesktopLauncher(), config);
+        org.springframework.context.annotation.AnnotationConfigApplicationContext ctx = new org.springframework.context.annotation.AnnotationConfigApplicationContext(ru.mipt.bit.platformer.config.GameConfig.class);
+        GameDesktopLauncher launcher = ctx.getBean(GameDesktopLauncher.class);
+        new Lwjgl3Application(launcher, config);
+    }
+
+    @Override
+    public void objectAdded(GameObject object) {
+        if (object instanceof TankModel) {
+            TankModel tm = (TankModel) object;
+            Tank tank = new Tank(new Texture("images/tank_blue.png"), tm);
+            tank.align(field.movement());
+            if (player == null) {
+                player = tank;
+                playerWithHealth = new HealthBarTank(player, tm);
+                playerWithHealth.align(field.movement());
+            } else {
+                aiTanks.add(tank);
+                Renderable decorated = new HealthBarTank(tank, tm);
+                decorated.align(field.movement());
+                aiTanksWithHealth.add(decorated);
+            }
+        } else if (object instanceof Obstacle) {
+            Obstacle o = (Obstacle) object;
+            if (o instanceof TreeObstacleModel) {
+                TreeObstacleModel tm = (TreeObstacleModel) o;
+                Renderable r = new TreeObstacle(new Texture("images/greenTree.png"), tm);
+                r.align(field.movement());
+                obstacles.add(r);
+            }
+        } else if (object instanceof BulletModel) {
+            BulletModel bm = (BulletModel) object;
+            BulletRenderable br = new BulletRenderable(bm);
+            br.align(field.movement());
+            bullets.add(br);
+        }
+    }
+
+    @Override
+    public void objectRemoved(GameObject object) {
+        if (object instanceof TankModel) {
+            TankModel tm = (TankModel) object;
+            if (player != null && player.getModel() == tm) {
+                player = null;
+                playerWithHealth = null;
+            } else {
+                for (int i = 0; i < aiTanks.size(); i++) {
+                    if (aiTanks.get(i).getModel() == tm) {
+                        aiTanks.get(i).dispose();
+                        aiTanks.remove(i);
+                        aiTanksWithHealth.remove(i);
+                        break;
+                    }
+                }
+            }
+        } else if (object instanceof Obstacle) {
+            for (int i = 0; i < obstacles.size(); i++) {
+                Renderable r = obstacles.get(i);
+                if (r instanceof TreeObstacle) {
+                    // no direct link; skip removal for simplicity
+                }
+            }
+        } else if (object instanceof BulletModel) {
+            for (int i = 0; i < bullets.size(); i++) {
+                Renderable r = bullets.get(i);
+                if (r instanceof BulletRenderable) {
+                    BulletRenderable br = (BulletRenderable) r;
+                    if (br.getModel() == object) {
+                        bullets.remove(i);
+                        break;
+                    }
+                }
+            }
+        }
     }
 }

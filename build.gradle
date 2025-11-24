@@ -24,4 +24,39 @@ dependencies {
     implementation deps.gdx.gdx
     implementation deps.gdx.backend_lwjgl3
     implementation deps.gdx.platform_desktop
+    implementation 'org.springframework:spring-context:5.3.31'
+    
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+tasks.named('run', JavaExec) {
+    def botsProp = System.getProperty('bots')
+    if (botsProp != null) {
+        systemProperty 'bots', botsProp
+    }
+    def modeProp = System.getProperty('level.mode')
+    if (modeProp != null) {
+        systemProperty 'level.mode', modeProp
+    }
+    def aiProp = System.getProperty('ai')
+    if (aiProp != null) {
+        systemProperty 'ai', aiProp
+    }
+    def bulletSpeed = System.getProperty('bullet.speed')
+    if (bulletSpeed != null) {
+        systemProperty 'bullet.speed', bulletSpeed
+    }
+    def bulletDamage = System.getProperty('bullet.damage')
+    if (bulletDamage != null) {
+        systemProperty 'bullet.damage', bulletDamage
+    }
 }
