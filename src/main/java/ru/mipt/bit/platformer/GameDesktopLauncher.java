@@ -20,6 +20,9 @@ import ru.mipt.bit.platformer.model.MovementRules;
 import ru.mipt.bit.platformer.model.WorldModel;
 import ru.mipt.bit.platformer.model.WorldObserver;
 import ru.mipt.bit.platformer.model.BulletModel;
+import ru.mipt.bit.platformer.config.WorldModelFactory;
+import org.springframework.stereotype.Component;
+import ru.mipt.bit.platformer.ai.BotStrategy;
 import ru.mipt.bit.platformer.model.GameObject;
 import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TreeObstacleModel;
@@ -35,6 +38,7 @@ import java.util.Set;
 
 import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
 
+@Component
 public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
 
     private static final float MOVEMENT_SPEED = 0.4f;
@@ -51,8 +55,16 @@ public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
     private InputHandler inputHandler;
     private AIHandler aiHandler;
     private MovementRules movementRules;
-    private HealthBarsController healthBarsController;
+    private final HealthBarsController healthBarsController;
     private WorldModel world;
+    private final WorldModelFactory worldFactory;
+    private final BotStrategy botStrategy;
+
+    public GameDesktopLauncher(BotStrategy botStrategy, HealthBarsController healthBarsController, WorldModelFactory worldFactory) {
+        this.botStrategy = botStrategy;
+        this.healthBarsController = healthBarsController;
+        this.worldFactory = worldFactory;
+    }
 
     @Override
     public void create() {
@@ -62,7 +74,7 @@ public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
         LevelLoader loader = selectLoader();
         LevelData data = loader.load();
 
-        world = new WorldModel(field.widthInTiles(), field.heightInTiles(), 0.05f, 0.25f);
+        world = worldFactory.create(field.widthInTiles(), field.heightInTiles());
         world.addObserver(this);
         TankModel tankModel = new TankModel(MOVEMENT_SPEED);
         tankModel.setPosition(new GridPoint2(data.getPlayerStart().x, data.getPlayerStart().y));
@@ -103,21 +115,12 @@ public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
         }
 
         movementRules = new MovementRules(w, h, obstacleModels);
-        healthBarsController = new HealthBarsControllerImpl();
         inputHandler = new InputHandler(tankModel, movementRules, healthBarsController);
         inputHandler.setShooter(world);
-        aiHandler = new AIHandler(movementRules, aiModels, selectStrategy(), world);
+        aiHandler = new AIHandler(movementRules, aiModels, botStrategy, world);
     }
 
-    private BotStrategy selectStrategy() {
-        String mode = System.getProperty("ai", "");
-        if (mode.isEmpty()) {
-            String env = System.getenv("AI");
-            if (env != null) mode = env;
-        }
-        if ("hold".equalsIgnoreCase(mode)) return new HoldCourseStrategy();
-        return new RandomStrategy();
-    }
+    
 
     private int readBotsCount() {
         String val = System.getProperty("bots");
@@ -258,7 +261,9 @@ public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setWindowedMode(1280, 1024);
-        new Lwjgl3Application(new GameDesktopLauncher(), config);
+        org.springframework.context.annotation.AnnotationConfigApplicationContext ctx = new org.springframework.context.annotation.AnnotationConfigApplicationContext(ru.mipt.bit.platformer.config.GameConfig.class);
+        GameDesktopLauncher launcher = ctx.getBean(GameDesktopLauncher.class);
+        new Lwjgl3Application(launcher, config);
     }
 
     @Override
