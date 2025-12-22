@@ -23,6 +23,7 @@ public class GameSession {
     public void initialize() {
         runtime.world().addObserver(levelGraphics);
         syncWorldToObserver(runtime.world());
+        levelGraphics.objectAdded(runtime.playerTank());
     }
 
     private void syncWorldToObserver(WorldModel world) {

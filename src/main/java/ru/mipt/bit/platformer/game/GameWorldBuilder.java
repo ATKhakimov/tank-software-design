@@ -84,7 +84,12 @@ public class GameWorldBuilder {
 
         InputHandler inputHandler = new InputHandler(inputSource, playerModel, movementRules, healthBarsController);
         inputHandler.setShooter(world);
-        AIHandler aiHandler = new AIHandler(movementRules, aiModels, botStrategy, world, random);
+        AIHandler aiHandler = new AIHandler(
+            movementRules,
+            aiModels,
+            botStrategy,
+            world,
+            new ru.mipt.bit.platformer.ai.RandomShootingPolicy(random, 0.1f));
 
         return new GameRuntime(world, movementRules, inputHandler, aiHandler, playerModel, aiModels, obstacles);
     }

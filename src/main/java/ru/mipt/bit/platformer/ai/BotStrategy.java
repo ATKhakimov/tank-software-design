@@ -8,4 +8,7 @@ import java.util.List;
 
 public interface BotStrategy {
     List<Direction> proposeDirections(TankModel tank, MovementRules rules);
+
+    default void onMoveStarted(TankModel tank, Direction direction) {
+    }
 }

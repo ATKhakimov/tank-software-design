@@ -2,6 +2,7 @@ package ru.mipt.bit.platformer.ai;
 
 import com.badlogic.gdx.math.GridPoint2;
 import org.junit.jupiter.api.Test;
+import ru.mipt.bit.platformer.ai.RandomShootingPolicy;
 import ru.mipt.bit.platformer.game.AIHandler;
 import ru.mipt.bit.platformer.input.CommandQueue;
 import ru.mipt.bit.platformer.model.Direction;
@@ -30,7 +31,7 @@ class AIHandlerTest {
         CountingShooter shooter = new CountingShooter();
         BotStrategy strategy = (t, r) -> Collections.singletonList(Direction.UP);
 
-        AIHandler handler = new AIHandler(rules, Collections.singletonList(tank), strategy, shooter, new Random(7L));
+        AIHandler handler = new AIHandler(rules, Collections.singletonList(tank), strategy, shooter, new RandomShootingPolicy(new Random(7L), 0.1f));
 
         int attempts = 0;
         while (tank.getProgress() == 1f && attempts < 50) { // loop until movement started
@@ -52,7 +53,7 @@ class AIHandlerTest {
         CountingShooter shooter = new CountingShooter();
         HoldCourseStrategy strategy = new HoldCourseStrategy();
 
-        AIHandler handler = new AIHandler(rules, Collections.singletonList(tank), strategy, shooter, new Random(11L));
+        AIHandler handler = new AIHandler(rules, Collections.singletonList(tank), strategy, shooter, new RandomShootingPolicy(new Random(11L), 0.1f));
         int attempts = 0;
         while (tank.getProgress() == 1f && attempts < 50) {
             CommandQueue queue = new CommandQueue();
