@@ -14,3 +14,8 @@
 - Было: libGDX ресурсы создавались до инициализации GDX-контекста, падение UnsatisfiedLinkError.
 - Стало: batch/field/textures/loader запрашиваются через `ObjectProvider` внутри `GameDesktopLauncher.create()`, все бины помечены @Lazy; добавлена явная инициализация player renderable до первого кадра.
 - Почему: корректный порядок инициализации GDX и отсутствие NPE на первом кадре; `./gradlew.bat run` проходит.
+
+## Архитектура: разделение логики и рендера
+- Было: `GameDesktopLauncher` — God Object (логика, ввод, AI, рендер, observer), создание view внутри лаунчера.
+- Стало: добавлен `GameSession` (tick ввода, AI, мира, вычисление occupied/reserved), `LevelGraphics` реализует `WorldObserver` и управляет всеми view; лаунчер лишь поднимает контекст и делегирует в сессию.
+- Почему: чистое разделение ответственности (game loop vs view), соблюдение Observer, уменьшение связности, подготовка к Command/Decorator/тестам.
