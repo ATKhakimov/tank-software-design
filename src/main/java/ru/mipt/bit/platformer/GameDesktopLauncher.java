@@ -1,4 +1,3 @@
-// Исправлены нарушения OCP/DIP через интерфейсы GameObject/Obstacle/Renderable
 package ru.mipt.bit.platformer;
 
 import com.badlogic.gdx.ApplicationListener;
@@ -7,28 +6,21 @@ import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.GridPoint2;
-import ru.mipt.bit.platformer.level.FileLevelLoader;
 import ru.mipt.bit.platformer.level.LevelData;
 import ru.mipt.bit.platformer.level.LevelLoader;
-import ru.mipt.bit.platformer.level.RandomLevelGenerator;
 import ru.mipt.bit.platformer.ai.BotStrategy;
-import ru.mipt.bit.platformer.ai.HoldCourseStrategy;
-import ru.mipt.bit.platformer.ai.RandomStrategy;
 import ru.mipt.bit.platformer.model.MovementRules;
 import ru.mipt.bit.platformer.model.WorldModel;
 import ru.mipt.bit.platformer.model.WorldObserver;
 import ru.mipt.bit.platformer.model.BulletModel;
 import ru.mipt.bit.platformer.config.WorldModelFactory;
-import org.springframework.stereotype.Component;
-import ru.mipt.bit.platformer.ai.BotStrategy;
 import ru.mipt.bit.platformer.model.GameObject;
 import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TreeObstacleModel;
-import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TankModel;
-import ru.mipt.bit.platformer.model.TreeObstacleModel;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -38,13 +30,23 @@ import java.util.Set;
 
 import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
 
-@Component
 public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
 
     private static final float MOVEMENT_SPEED = 0.4f;
 
+    private final ObjectProvider<Batch> batchProvider;
+    private final ObjectProvider<GameField> fieldProvider;
+    private final ObjectProvider<LevelLoader> levelLoaderProvider;
+    private final ObjectProvider<Texture> tankTextureProvider;
+    private final ObjectProvider<Texture> treeTextureProvider;
+    private final ObjectProvider<Texture> pixelTextureProvider;
     private Batch batch;
     private GameField field;
+    private LevelLoader levelLoader;
+    private Texture tankTexture;
+    private Texture treeTexture;
+    private Texture pixelTexture;
+    private final int botsCount;
     private Tank player;
     private Renderable playerWithHealth;
     private final List<Renderable> obstacles = new ArrayList<>();
@@ -60,25 +62,48 @@ public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
     private final WorldModelFactory worldFactory;
     private final BotStrategy botStrategy;
 
-    public GameDesktopLauncher(BotStrategy botStrategy, HealthBarsController healthBarsController, WorldModelFactory worldFactory) {
+    public GameDesktopLauncher(BotStrategy botStrategy, HealthBarsController healthBarsController, WorldModelFactory worldFactory,
+                               ObjectProvider<Batch> batchProvider,
+                               ObjectProvider<GameField> fieldProvider,
+                               ObjectProvider<LevelLoader> levelLoaderProvider,
+                               @Qualifier("tankTexture") ObjectProvider<Texture> tankTextureProvider,
+                               @Qualifier("treeTexture") ObjectProvider<Texture> treeTextureProvider,
+                               @Qualifier("pixelTexture") ObjectProvider<Texture> pixelTextureProvider,
+                               int botsCount) {
         this.botStrategy = botStrategy;
         this.healthBarsController = healthBarsController;
         this.worldFactory = worldFactory;
+        this.batchProvider = batchProvider;
+        this.fieldProvider = fieldProvider;
+        this.levelLoaderProvider = levelLoaderProvider;
+        this.tankTextureProvider = tankTextureProvider;
+        this.treeTextureProvider = treeTextureProvider;
+        this.pixelTextureProvider = pixelTextureProvider;
+        this.botsCount = botsCount;
     }
 
     @Override
     public void create() {
-        batch = new SpriteBatch();
-        field = new GameField(batch);
+        batch = batchProvider.getObject();
+        field = fieldProvider.getObject();
+        levelLoader = levelLoaderProvider.getObject();
+        tankTexture = tankTextureProvider.getObject();
+        treeTexture = treeTextureProvider.getObject();
+        pixelTexture = pixelTextureProvider.getObject();
 
-        LevelLoader loader = selectLoader();
-        LevelData data = loader.load();
+        LevelData data = levelLoader.load();
 
         world = worldFactory.create(field.widthInTiles(), field.heightInTiles());
         world.addObserver(this);
         TankModel tankModel = new TankModel(MOVEMENT_SPEED);
         tankModel.setPosition(new GridPoint2(data.getPlayerStart().x, data.getPlayerStart().y));
         world.addTank(tankModel);
+
+        Tank tank = new Tank(tankTexture, tankModel);
+        tank.align(field.movement());
+        player = tank;
+        playerWithHealth = new HealthBarTank(player, tankModel, pixelTexture);
+        playerWithHealth.align(field.movement());
 
         List<Obstacle> obstacleModels = new ArrayList<>();
         for (GridPoint2 pos : data.getTreePositions()) {
@@ -103,7 +128,7 @@ public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
                 if (!forbidden.contains(p)) free.add(p);
             }
         }
-        int aiCount = Math.min(readBotsCount(), free.size());
+        int aiCount = Math.min(botsCount, free.size());
         Random rnd = new Random();
         for (int i = 0; i < aiCount; i++) {
             int idx = rnd.nextInt(free.size());
@@ -120,47 +145,6 @@ public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
         aiHandler = new AIHandler(movementRules, aiModels, botStrategy, world);
     }
 
-    
-
-    private int readBotsCount() {
-        String val = System.getProperty("bots");
-        if (val == null) {
-            val = System.getenv("BOTS");
-        }
-        int def = 3;
-        if (val == null || val.isEmpty()) return def;
-        try {
-            int n = Integer.parseInt(val.trim());
-            return Math.max(0, n);
-        } catch (NumberFormatException e) {
-            return def;
-        }
-    }
-
-    private LevelLoader selectLoader() {
-        String mode = System.getProperty("level.mode", "");
-        if (mode.isEmpty()) {
-            String env = System.getenv("LEVEL_MODE");
-            if (env != null) {
-                mode = env;
-            }
-        }
-        if ("random".equalsIgnoreCase(mode)) {
-            return new RandomLevelGenerator(field.widthInTiles(), field.heightInTiles(), 0.2f);
-        }
-        if ("file".equalsIgnoreCase(mode)) {
-            return new FileLevelLoader("level.txt");
-        }
-        if (resourceExists("level.txt")) {
-            return new FileLevelLoader("level.txt");
-        }
-        return new RandomLevelGenerator(field.widthInTiles(), field.heightInTiles(), 0.2f);
-    }
-
-    private boolean resourceExists(String resourcePath) {
-        return GameDesktopLauncher.class.getClassLoader().getResource(resourcePath) != null;
-    }
-
     @Override
     public void render() {
         Gdx.gl.glClearColor(0f, 0f, 0.2f, 1f);
@@ -168,16 +152,13 @@ public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
 
         float deltaTime = Gdx.graphics.getDeltaTime();
 
-        
-    Set<GridPoint2> occupied = computeOccupied();
-    Set<GridPoint2> reserved = computeReserved();
-    movementRules.setOccupied(occupied, reserved);
+        Set<GridPoint2> occupied = computeOccupied();
+        Set<GridPoint2> reserved = computeReserved();
+        movementRules.setOccupied(occupied, reserved);
 
-    
         inputHandler.handle();
         aiHandler.handle();
 
-       
         player.update(field.movement(), deltaTime);
         for (Tank t : aiTanks) t.update(field.movement(), deltaTime);
         world.tick(deltaTime);
@@ -247,38 +228,42 @@ public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
 
     @Override
     public void dispose() {
-        for (Renderable r : obstacles) {
-            r.dispose();
-        }
-        for (Tank t : aiTanks) {
-            t.dispose();
-        }
-        player.dispose();
-        field.dispose();
-        batch.dispose();
+        bullets.clear();
+        aiTanksWithHealth.clear();
+        aiTanks.clear();
+        obstacles.clear();
     }
 
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setWindowedMode(1280, 1024);
-        org.springframework.context.annotation.AnnotationConfigApplicationContext ctx = new org.springframework.context.annotation.AnnotationConfigApplicationContext(ru.mipt.bit.platformer.config.GameConfig.class);
-        GameDesktopLauncher launcher = ctx.getBean(GameDesktopLauncher.class);
-        new Lwjgl3Application(launcher, config);
+        try (org.springframework.context.annotation.AnnotationConfigApplicationContext ctx = new org.springframework.context.annotation.AnnotationConfigApplicationContext(ru.mipt.bit.platformer.config.GameSessionConfiguration.class)) {
+            GameDesktopLauncher launcher = ctx.getBean(GameDesktopLauncher.class);
+            new Lwjgl3Application(launcher, config);
+        }
     }
 
     @Override
     public void objectAdded(GameObject object) {
         if (object instanceof TankModel) {
             TankModel tm = (TankModel) object;
-            Tank tank = new Tank(new Texture("images/tank_blue.png"), tm);
+            if (player != null && player.getModel() == tm) {
+                return;
+            }
+            for (Tank existing : aiTanks) {
+                if (existing.getModel() == tm) {
+                    return;
+                }
+            }
+            Tank tank = new Tank(tankTexture, tm);
             tank.align(field.movement());
             if (player == null) {
                 player = tank;
-                playerWithHealth = new HealthBarTank(player, tm);
+                playerWithHealth = new HealthBarTank(player, tm, pixelTexture);
                 playerWithHealth.align(field.movement());
             } else {
                 aiTanks.add(tank);
-                Renderable decorated = new HealthBarTank(tank, tm);
+                Renderable decorated = new HealthBarTank(tank, tm, pixelTexture);
                 decorated.align(field.movement());
                 aiTanksWithHealth.add(decorated);
             }
@@ -286,13 +271,13 @@ public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
             Obstacle o = (Obstacle) object;
             if (o instanceof TreeObstacleModel) {
                 TreeObstacleModel tm = (TreeObstacleModel) o;
-                Renderable r = new TreeObstacle(new Texture("images/greenTree.png"), tm);
+                Renderable r = new TreeObstacle(treeTexture, tm);
                 r.align(field.movement());
                 obstacles.add(r);
             }
         } else if (object instanceof BulletModel) {
             BulletModel bm = (BulletModel) object;
-            BulletRenderable br = new BulletRenderable(bm);
+            BulletRenderable br = new BulletRenderable(bm, pixelTexture);
             br.align(field.movement());
             bullets.add(br);
         }
@@ -308,7 +293,6 @@ public class GameDesktopLauncher implements ApplicationListener, WorldObserver {
             } else {
                 for (int i = 0; i < aiTanks.size(); i++) {
                     if (aiTanks.get(i).getModel() == tm) {
-                        aiTanks.get(i).dispose();
                         aiTanks.remove(i);
                         aiTanksWithHealth.remove(i);
                         break;

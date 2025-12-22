@@ -1,6 +1,5 @@
 package ru.mipt.bit.platformer;
 
-import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -11,24 +10,12 @@ import ru.mipt.bit.platformer.util.TileMovement;
 public class HealthBarTank implements Renderable {
     private final Tank base;
     private final TankModel model;
-    private static Texture pixel;
-    private static TextureRegion region;
+    private final TextureRegion region;
 
-    public HealthBarTank(Tank base, TankModel model) {
+    public HealthBarTank(Tank base, TankModel model, Texture pixelTexture) {
         this.base = base;
         this.model = model;
-        ensurePixel();
-    }
-
-    private static void ensurePixel() {
-        if (pixel == null) {
-            Pixmap pm = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
-            pm.setColor(1f, 1f, 1f, 1f);
-            pm.fillRectangle(0, 0, 1, 1);
-            pixel = new Texture(pm);
-            pm.dispose();
-            region = new TextureRegion(pixel);
-        }
+        this.region = new TextureRegion(pixelTexture);
     }
 
     public void update(TileMovement movement, float deltaTime) {

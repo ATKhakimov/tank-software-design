@@ -44,6 +44,5 @@ public class Tank implements Renderable {
     }
 
     public void dispose() {
-        texture.dispose();
     }
 }

@@ -35,6 +35,5 @@ public class TreeObstacle implements Renderable {
     }
 
     public void dispose() {
-        texture.dispose();
     }
 }
