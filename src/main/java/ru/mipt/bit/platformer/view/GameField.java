@@ -4,7 +4,6 @@ package ru.mipt.bit.platformer.view;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
-import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.math.Interpolation;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import ru.mipt.bit.platformer.util.GdxGameUtils;
@@ -16,8 +15,8 @@ public class GameField {
     private final TiledMapTileLayer groundLayer;
     private final TileMovement movement;
 
-    public GameField(Batch batch) {
-        map = new TmxMapLoader().load("level.tmx");
+    public GameField(Batch batch, MapProvider mapProvider) {
+        map = mapProvider.load();
         renderer = (OrthogonalTiledMapRenderer) GdxGameUtils.createSingleLayerMapRenderer(map, batch);
         groundLayer = GdxGameUtils.getSingleLayer(map);
         movement = new TileMovement(groundLayer, Interpolation.smooth);

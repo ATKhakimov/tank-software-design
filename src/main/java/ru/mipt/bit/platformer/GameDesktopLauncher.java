@@ -16,6 +16,8 @@ import ru.mipt.bit.platformer.level.LevelLoader;
 import ru.mipt.bit.platformer.view.GameField;
 import ru.mipt.bit.platformer.view.HealthBarsController;
 import ru.mipt.bit.platformer.view.LevelGraphics;
+import ru.mipt.bit.platformer.view.GameObjectRenderableFactory;
+import ru.mipt.bit.platformer.view.RenderableFactory;
 
 public class GameDesktopLauncher implements ApplicationListener {
 
@@ -61,7 +63,8 @@ public class GameDesktopLauncher implements ApplicationListener {
         Texture treeTexture = treeTextureProvider.getObject();
         Texture pixelTexture = pixelTextureProvider.getObject();
 
-        LevelGraphics levelGraphics = new LevelGraphics(field, batch, tankTexture, treeTexture, pixelTexture, healthBarsController);
+        RenderableFactory renderableFactory = new GameObjectRenderableFactory(tankTexture, treeTexture, pixelTexture, healthBarsController);
+        LevelGraphics levelGraphics = new LevelGraphics(field, batch, renderableFactory, healthBarsController);
         GameWorldBuilder builder = new GameWorldBuilder(worldFactory, botStrategy, healthBarsController, levelLoader, botsCount);
         gameSession = new GameSession(builder.build(), levelGraphics);
         gameSession.initialize();

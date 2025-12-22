@@ -1,21 +1,15 @@
 package ru.mipt.bit.platformer.view;
 
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.GridPoint2;
-import ru.mipt.bit.platformer.view.BulletRenderable;
-import ru.mipt.bit.platformer.view.HealthBarDecorator;
-import ru.mipt.bit.platformer.view.HealthBarsController;
-import ru.mipt.bit.platformer.view.Renderable;
-import ru.mipt.bit.platformer.view.Tank;
-import ru.mipt.bit.platformer.view.TreeObstacle;
-import ru.mipt.bit.platformer.model.BulletModel;
 import ru.mipt.bit.platformer.model.GameObject;
-import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TankModel;
-import ru.mipt.bit.platformer.model.TreeObstacleModel;
+import ru.mipt.bit.platformer.model.Obstacle;
+import ru.mipt.bit.platformer.model.BulletModel;
 import ru.mipt.bit.platformer.model.WorldObserver;
 import ru.mipt.bit.platformer.util.TileMovement;
+import ru.mipt.bit.platformer.view.HealthBarsController;
+import ru.mipt.bit.platformer.view.BulletRenderable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,9 +19,7 @@ import java.util.Map;
 public class LevelGraphics implements WorldObserver {
     private final GameField field;
     private final Batch batch;
-    private final Texture tankTexture;
-    private final Texture treeTexture;
-    private final Texture pixelTexture;
+    private final RenderableFactory renderableFactory;
     private final HealthBarsController healthBarsController;
 
     private Tank player;
@@ -38,12 +30,10 @@ public class LevelGraphics implements WorldObserver {
     private final List<Renderable> bullets = new ArrayList<>();
     private final Map<TankModel, Tank> tankViews = new HashMap<>();
 
-    public LevelGraphics(GameField field, Batch batch, Texture tankTexture, Texture treeTexture, Texture pixelTexture, HealthBarsController healthBarsController) {
+    public LevelGraphics(GameField field, Batch batch, RenderableFactory renderableFactory, HealthBarsController healthBarsController) {
         this.field = field;
         this.batch = batch;
-        this.tankTexture = tankTexture;
-        this.treeTexture = treeTexture;
-        this.pixelTexture = pixelTexture;
+        this.renderableFactory = renderableFactory;
         this.healthBarsController = healthBarsController;
     }
 
@@ -68,7 +58,8 @@ public class LevelGraphics implements WorldObserver {
         field.render();
 
         batch.begin();
-        if (healthBarsController != null && healthBarsController.isEnabled() && playerWithHealth != null) {
+        boolean showHealth = healthBarsController != null && healthBarsController.isEnabled();
+        if (showHealth && playerWithHealth != null) {
             playerWithHealth.render(batch);
         } else if (player != null) {
             player.render(batch);
@@ -76,14 +67,11 @@ public class LevelGraphics implements WorldObserver {
         for (Renderable r : obstacles) {
             r.render(batch);
         }
-        if (healthBarsController != null && healthBarsController.isEnabled()) {
-            for (Renderable t : aiTanksWithHealth) {
-                t.render(batch);
-            }
-        } else {
-            for (Tank t : aiTanks) {
-                t.render(batch);
-            }
+        List<Renderable> aiRenderables = showHealth && !aiTanksWithHealth.isEmpty()
+            ? aiTanksWithHealth
+            : new ArrayList<>(aiTanks);
+        for (Renderable t : aiRenderables) {
+            t.render(batch);
         }
         for (Renderable b : bullets) {
             b.render(batch);
@@ -93,37 +81,48 @@ public class LevelGraphics implements WorldObserver {
 
     @Override
     public void objectAdded(GameObject object) {
-        if (object instanceof TankModel) {
-            TankModel tm = (TankModel) object;
-            if (tankViews.containsKey(tm)) {
-                return;
-            }
-            Tank tank = new Tank(tankTexture, tm);
-            tank.align(field.movement());
-            tankViews.put(tm, tank);
-            if (player == null) {
-                player = tank;
-                playerWithHealth = new HealthBarDecorator<>(player, tm, pixelTexture, player.getBounds());
-                playerWithHealth.align(field.movement());
-            } else {
-                aiTanks.add(tank);
-                Renderable decorated = new HealthBarDecorator<>(tank, tm, pixelTexture, tank.getBounds());
-                decorated.align(field.movement());
-                aiTanksWithHealth.add(decorated);
-            }
-        } else if (object instanceof Obstacle) {
-            Obstacle o = (Obstacle) object;
-            if (o instanceof TreeObstacleModel) {
-                TreeObstacleModel tm = (TreeObstacleModel) o;
-                Renderable r = new TreeObstacle(treeTexture, tm);
-                r.align(field.movement());
-                obstacles.add(r);
-            }
-        } else if (object instanceof BulletModel) {
-            BulletModel bm = (BulletModel) object;
-            BulletRenderable br = new BulletRenderable(bm, pixelTexture);
-            br.align(field.movement());
-            bullets.add(br);
+        RenderableCreation creation = renderableFactory.create(object, field.movement(), player == null && object instanceof TankModel);
+        switch (creation.kind()) {
+            case PLAYER_TANK:
+                if (object instanceof TankModel) {
+                    TankModel tm = (TankModel) object;
+                    if (tankViews.containsKey(tm)) {
+                        return;
+                    }
+                    Tank tank = (Tank) creation.main();
+                    tankViews.put(tm, tank);
+                    player = tank;
+                    playerWithHealth = creation.decorated();
+                }
+                break;
+            case AI_TANK:
+                if (object instanceof TankModel) {
+                    TankModel tm = (TankModel) object;
+                    if (tankViews.containsKey(tm)) {
+                        return;
+                    }
+                    Tank tank = (Tank) creation.main();
+                    tankViews.put(tm, tank);
+                    aiTanks.add(tank);
+                    if (creation.decorated() != null) {
+                        aiTanksWithHealth.add(creation.decorated());
+                    } else {
+                        aiTanksWithHealth.add(tank);
+                    }
+                }
+                break;
+            case OBSTACLE:
+                if (creation.main() != null) {
+                    obstacles.add(creation.main());
+                }
+                break;
+            case BULLET:
+                if (creation.main() != null) {
+                    bullets.add(creation.main());
+                }
+                break;
+            default:
+                break;
         }
     }
 

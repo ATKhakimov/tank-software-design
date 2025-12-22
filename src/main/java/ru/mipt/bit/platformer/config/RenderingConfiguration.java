@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import ru.mipt.bit.platformer.view.GameField;
+import ru.mipt.bit.platformer.view.MapProvider;
+import ru.mipt.bit.platformer.view.TmxMapProvider;
 
 @Configuration
 public class RenderingConfiguration {
@@ -19,8 +21,14 @@ public class RenderingConfiguration {
 
     @Bean(destroyMethod = "dispose")
     @Lazy
-    public GameField gameField(Batch batch) {
-        return new GameField(batch);
+    public GameField gameField(Batch batch, MapProvider mapProvider) {
+        return new GameField(batch, mapProvider);
+    }
+
+    @Bean
+    @Lazy
+    public MapProvider mapProvider() {
+        return new TmxMapProvider("level.tmx");
     }
 
     @Bean(destroyMethod = "dispose")
