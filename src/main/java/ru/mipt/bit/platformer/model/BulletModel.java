@@ -2,6 +2,7 @@ package ru.mipt.bit.platformer.model;
 
 import com.badlogic.gdx.math.GridPoint2;
 import ru.mipt.bit.platformer.model.Direction;
+import ru.mipt.bit.platformer.model.CollisionContext;
 
 public class BulletModel implements GameObject {
     private final GridPoint2 coordinates = new GridPoint2();
@@ -40,28 +41,28 @@ public class BulletModel implements GameObject {
         return damage;
     }
 
-    public void tick(float delta, WorldModel world) {
+    public void tick(float delta, CollisionContext context) {
         if (removed) return;
         elapsed += delta;
         if (elapsed < speed) return;
         elapsed = 0f;
         GridPoint2 next = direction.apply(coordinates);
-        if (!world.inBounds(next)) {
+        if (!context.inBounds(next)) {
             removed = true;
             return;
         }
-        if (world.isObstacle(next)) {
+        if (context.isObstacle(next)) {
             removed = true;
             return;
         }
-        TankModel hitTank = world.findTank(next);
+        TankModel hitTank = context.findTank(next);
         if (hitTank != null) {
-            world.damageTank(hitTank, damage);
+            context.applyDamage(hitTank, damage);
             removed = true;
             return;
         }
         coordinates.set(next);
-        BulletModel other = world.findBullet(next, this);
+        BulletModel other = context.findBullet(next, this);
         if (other != null) {
             removed = true;
             other.removed = true;

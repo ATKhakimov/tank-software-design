@@ -1,27 +1,29 @@
 package ru.mipt.bit.platformer.model;
 
 import com.badlogic.gdx.math.GridPoint2;
-import ru.mipt.bit.platformer.model.Direction;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
-public class WorldModel implements Shooter {
+public class WorldModel implements Shooter, CombatContext, CollisionContext {
     private final int width;
     private final int height;
     private final List<Obstacle> obstacles = new ArrayList<>();
     private final List<TankModel> tanks = new ArrayList<>();
     private final List<BulletModel> bullets = new ArrayList<>();
     private final List<WorldObserver> observers = new ArrayList<>();
-    private final float bulletSpeed;
-    private final float bulletDamage;
+    private final CombatSystem combatSystem;
+    private final BulletSimulator bulletSimulator;
 
-    public WorldModel(int width, int height, float bulletSpeed, float bulletDamage) {
+    public WorldModel(int width, int height, CombatSystem combatSystem, BulletSimulator bulletSimulator) {
         this.width = width;
         this.height = height;
-        this.bulletSpeed = bulletSpeed;
-        this.bulletDamage = bulletDamage;
+        this.combatSystem = combatSystem;
+        this.bulletSimulator = bulletSimulator;
+    }
+
+    public WorldModel(int width, int height, float bulletSpeed, float bulletDamage) {
+        this(width, height, new DefaultCombatSystem(bulletSpeed, bulletDamage), new BulletSimulator());
     }
 
     public void addObserver(WorldObserver observer) {
@@ -46,16 +48,6 @@ public class WorldModel implements Shooter {
         publishAdded(t);
     }
 
-    public void removeTank(TankModel t) {
-        tanks.remove(t);
-        publishRemoved(t);
-    }
-
-    public void removeBullet(BulletModel b) {
-        bullets.remove(b);
-        publishRemoved(b);
-    }
-
     public boolean inBounds(GridPoint2 p) {
         return p.x >= 0 && p.y >= 0 && p.x < width && p.y < height;
     }
@@ -77,38 +69,11 @@ public class WorldModel implements Shooter {
 
     @Override
     public void shoot(TankModel tank) {
-        Direction d = Direction.fromRotation(tank.getRotation());
-        GridPoint2 start = d.apply(tank.getCoordinates());
-        if (!inBounds(start)) return;
-
-        if (isObstacle(start)) return; 
-        TankModel hit = findTank(start);
-        if (hit != null) {
-            damageTank(hit, bulletDamage);
-            return;
-        }
-        BulletModel b = new BulletModel(start, d, bulletSpeed, bulletDamage);
-        bullets.add(b);
-        publishAdded(b);
-    }
-
-    public void damageTank(TankModel t, float dmg) {
-        t.setHealth(t.getHealth() - dmg);
-        if (t.getHealth() <= 0f) {
-            removeTank(t);
-        }
+        combatSystem.shoot(tank, this);
     }
 
     public void tick(float delta) {
-        Iterator<BulletModel> it = bullets.iterator();
-        while (it.hasNext()) {
-            BulletModel b = it.next();
-            b.tick(delta, this);
-            if (b.isRemoved()) {
-                it.remove();
-                publishRemoved(b);
-            }
-        }
+        bulletSimulator.tick(delta, bullets, this, this::publishRemoved);
     }
 
     public List<TankModel> getTanks() {
@@ -120,4 +85,22 @@ public class WorldModel implements Shooter {
     }
 
     public List<BulletModel> getBullets() { return bullets; }
+
+    @Override
+    public void addBullet(BulletModel bullet) {
+        bullets.add(bullet);
+        publishAdded(bullet);
+    }
+
+    @Override
+    public void removeTank(TankModel tank) {
+        if (tanks.remove(tank)) {
+            publishRemoved(tank);
+        }
+    }
+
+    @Override
+    public void applyDamage(TankModel tank, float damage) {
+        combatSystem.applyDamage(tank, damage, this);
+    }
 }
