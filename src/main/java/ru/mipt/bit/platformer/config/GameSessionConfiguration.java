@@ -27,16 +27,16 @@ public class GameSessionConfiguration {
                                    @Value("${level.mode:}") String modeProperty,
                                    @Value("${LEVEL_MODE:}") String modeEnv) {
         String mode = modeProperty.isEmpty() ? modeEnv : modeProperty;
+        LevelLoader fileLoader = new FileLevelLoader("level.txt");
+        LevelLoader randomLoader = new RandomLevelGenerator(field.widthInTiles(), field.heightInTiles(), 0.2f);
+        LevelLoader tmxLoader = new ru.mipt.bit.platformer.level.TmxLevelLoader("level.tmx", fileLoader);
         if ("random".equalsIgnoreCase(mode)) {
-            return new RandomLevelGenerator(field.widthInTiles(), field.heightInTiles(), 0.2f);
+            return randomLoader;
         }
         if ("file".equalsIgnoreCase(mode)) {
-            return new FileLevelLoader("level.txt");
+            return fileLoader;
         }
-        if (resourceExists("level.txt")) {
-            return new FileLevelLoader("level.txt");
-        }
-        return new RandomLevelGenerator(field.widthInTiles(), field.heightInTiles(), 0.2f);
+        return tmxLoader;
     }
 
     @Bean

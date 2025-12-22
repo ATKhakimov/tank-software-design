@@ -52,14 +52,16 @@ public class InputHandler {
         commands.add(new ShootCommand(tank, Input.Keys.SPACE));
     }
 
-    public void handle() {
+    public CommandQueue collectCommands() {
+        CommandQueue queue = new CommandQueue();
         for (InputCommand command : commands) {
-            command.execute();
+            command.enqueueIfTriggered(queue);
         }
+        return queue;
     }
 
     private interface InputCommand {
-        void execute();
+        void enqueueIfTriggered(CommandQueue queue);
     }
 
     private static class MoveCommand implements InputCommand {
@@ -78,12 +80,11 @@ public class InputHandler {
         }
 
         @Override
-        public void execute() {
+        public void enqueueIfTriggered(CommandQueue queue) {
             if (!Gdx.input.isKeyPressed(primaryKey) && !Gdx.input.isKeyPressed(secondaryKey)) {
                 return;
             }
-        
-            rules.attemptStartOrFace(tank, direction);
+            queue.enqueue(() -> rules.attemptStartOrFace(tank, direction));
         }
     }
 
@@ -103,11 +104,11 @@ public class InputHandler {
         }
 
         @Override
-        public void execute() {
+        public void enqueueIfTriggered(CommandQueue queue) {
             if (shooter == null) return;
             boolean isPressed = Gdx.input.isKeyPressed(key);
             if (isPressed && !wasPressed) {
-                shooter.shoot(tank);
+                queue.enqueue(() -> shooter.shoot(tank));
             }
             wasPressed = isPressed;
         }
@@ -124,10 +125,10 @@ public class InputHandler {
         }
 
         @Override
-        public void execute() {
+        public void enqueueIfTriggered(CommandQueue queue) {
             boolean isPressed = Gdx.input.isKeyPressed(key);
             if (isPressed && !wasPressed) {
-                controller.toggle();
+                queue.enqueue(controller::toggle);
             }
             wasPressed = isPressed;
         }

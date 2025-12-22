@@ -10,6 +10,7 @@ import ru.mipt.bit.platformer.model.TankModel;
 import ru.mipt.bit.platformer.model.TreeObstacleModel;
 import ru.mipt.bit.platformer.model.WorldObserver;
 import ru.mipt.bit.platformer.util.TileMovement;
+import ru.mipt.bit.platformer.HealthBarDecorator;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -97,11 +98,11 @@ public class LevelGraphics implements WorldObserver {
             tankViews.put(tm, tank);
             if (player == null) {
                 player = tank;
-                playerWithHealth = new HealthBarTank(player, tm, pixelTexture);
+                playerWithHealth = new HealthBarDecorator<>(player, tm, pixelTexture, player.getBounds());
                 playerWithHealth.align(field.movement());
             } else {
                 aiTanks.add(tank);
-                Renderable decorated = new HealthBarTank(tank, tm, pixelTexture);
+                Renderable decorated = new HealthBarDecorator<>(tank, tm, pixelTexture, tank.getBounds());
                 decorated.align(field.movement());
                 aiTanksWithHealth.add(decorated);
             }

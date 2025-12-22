@@ -6,6 +6,7 @@ import ru.mipt.bit.platformer.config.WorldModelFactory;
 import ru.mipt.bit.platformer.level.LevelData;
 import ru.mipt.bit.platformer.level.LevelLoader;
 import ru.mipt.bit.platformer.model.MovementRules;
+import ru.mipt.bit.platformer.model.MovementReservations;
 import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TankModel;
 import ru.mipt.bit.platformer.model.TreeObstacleModel;
@@ -29,6 +30,7 @@ public class GameSession {
 
     private WorldModel world;
     private MovementRules movementRules;
+    private final MovementReservations movementReservations = new MovementReservations();
     private InputHandler inputHandler;
     private AIHandler aiHandler;
     private final List<TankModel> aiModels = new ArrayList<>();
@@ -104,34 +106,15 @@ public class GameSession {
     }
 
     public void renderFrame(float deltaTime) {
-        Set<GridPoint2> occupied = computeOccupied();
-        Set<GridPoint2> reserved = computeReserved();
-        movementRules.setOccupied(occupied, reserved);
+        MovementReservations.Snapshot snapshot = movementReservations.snapshot(world.getTanks());
+        movementRules.setOccupied(snapshot.occupied(), snapshot.reserved());
 
-        inputHandler.handle();
+        CommandQueue queue = inputHandler.collectCommands();
+        queue.executeAll();
         aiHandler.handle();
         world.tick(deltaTime);
 
         levelGraphics.renderFrame(deltaTime);
-    }
-
-    private Set<GridPoint2> computeOccupied() {
-        Set<GridPoint2> occ = new HashSet<>();
-        for (TankModel t : world.getTanks()) {
-            occ.add(new GridPoint2(t.getCoordinates()));
-        }
-        return occ;
-    }
-
-    private Set<GridPoint2> computeReserved() {
-        Set<GridPoint2> res = new HashSet<>();
-        for (TankModel t : world.getTanks()) {
-            if (!t.isReady()) {
-                res.add(new GridPoint2(t.getCoordinates()));
-                res.add(new GridPoint2(t.getDestination()));
-            }
-        }
-        return res;
     }
 
     public void dispose() {
