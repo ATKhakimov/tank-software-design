@@ -1,39 +1,34 @@
-// Обработчик ввода через абстракции GameObject/Obstacle для соблюдения DIP
+// Обработчик ввода: маппинг клавиш -> команды, без прямой зависимости от Gdx
 package ru.mipt.bit.platformer;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.math.GridPoint2;
 import ru.mipt.bit.platformer.model.MovementRules;
 import ru.mipt.bit.platformer.model.Shooter;
-import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TankModel;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class InputHandler {
-    private final List<InputCommand> commands = new ArrayList<>();
+    private final InputSource input;
+    private final List<InputCommand> commands;
 
-    public InputHandler(TankModel tank, Obstacle obstacle) {
-        List<Obstacle> list = new ArrayList<>();
-        list.add(obstacle);
-        MovementRules rules = new MovementRules(Integer.MAX_VALUE, Integer.MAX_VALUE, list);
-        initCommands(tank, rules);
+    public InputHandler(InputSource input, List<InputCommand> commands) {
+        this.input = input;
+        this.commands = new ArrayList<>(commands);
     }
 
-    public InputHandler(TankModel tank, List<Obstacle> obstacles) {
-        MovementRules rules = new MovementRules(Integer.MAX_VALUE, Integer.MAX_VALUE, obstacles);
-        initCommands(tank, rules);
+    public InputHandler(InputSource input, TankModel tank, MovementRules rules, HealthBarsController healthBarsController) {
+        this(input, buildDefaultCommands(tank, rules, healthBarsController));
     }
 
-    public InputHandler(TankModel tank, MovementRules rules) {
-        initCommands(tank, rules);
-    }
-
+    // Backward-compatible convenience ctor used by GameSession
     public InputHandler(TankModel tank, MovementRules rules, HealthBarsController healthBarsController) {
-        initCommands(tank, rules);
-        commands.add(new ToggleHealthBarsCommand(healthBarsController, Input.Keys.L));
+        this(new GdxInputSource(), tank, rules, healthBarsController);
+    }
+
+    public void addCommand(InputCommand command) {
+        this.commands.add(command);
     }
 
     public void setShooter(Shooter shooter) {
@@ -44,24 +39,23 @@ public class InputHandler {
         }
     }
 
-    private void initCommands(TankModel tank, MovementRules rules) {
-        commands.add(new MoveCommand(tank, rules, Direction.UP, Input.Keys.UP, Input.Keys.W));
-        commands.add(new MoveCommand(tank, rules, Direction.LEFT, Input.Keys.LEFT, Input.Keys.A));
-        commands.add(new MoveCommand(tank, rules, Direction.DOWN, Input.Keys.DOWN, Input.Keys.S));
-        commands.add(new MoveCommand(tank, rules, Direction.RIGHT, Input.Keys.RIGHT, Input.Keys.D));
-        commands.add(new ShootCommand(tank, Input.Keys.SPACE));
-    }
-
     public CommandQueue collectCommands() {
         CommandQueue queue = new CommandQueue();
         for (InputCommand command : commands) {
-            command.enqueueIfTriggered(queue);
+            command.enqueueIfTriggered(input, queue);
         }
         return queue;
     }
 
-    private interface InputCommand {
-        void enqueueIfTriggered(CommandQueue queue);
+    private static List<InputCommand> buildDefaultCommands(TankModel tank, MovementRules rules, HealthBarsController controller) {
+        List<InputCommand> cmds = new ArrayList<>();
+        cmds.add(new MoveCommand(tank, rules, Direction.UP, Input.Keys.UP, Input.Keys.W));
+        cmds.add(new MoveCommand(tank, rules, Direction.LEFT, Input.Keys.LEFT, Input.Keys.A));
+        cmds.add(new MoveCommand(tank, rules, Direction.DOWN, Input.Keys.DOWN, Input.Keys.S));
+        cmds.add(new MoveCommand(tank, rules, Direction.RIGHT, Input.Keys.RIGHT, Input.Keys.D));
+        cmds.add(new ShootCommand(tank, Input.Keys.SPACE));
+        cmds.add(new ToggleHealthBarsCommand(controller, Input.Keys.L));
+        return cmds;
     }
 
     private static class MoveCommand implements InputCommand {
@@ -80,8 +74,8 @@ public class InputHandler {
         }
 
         @Override
-        public void enqueueIfTriggered(CommandQueue queue) {
-            if (!Gdx.input.isKeyPressed(primaryKey) && !Gdx.input.isKeyPressed(secondaryKey)) {
+        public void enqueueIfTriggered(InputSource input, CommandQueue queue) {
+            if (!input.isKeyPressed(primaryKey) && !input.isKeyPressed(secondaryKey)) {
                 return;
             }
             queue.enqueue(() -> rules.attemptStartOrFace(tank, direction));
@@ -104,9 +98,9 @@ public class InputHandler {
         }
 
         @Override
-        public void enqueueIfTriggered(CommandQueue queue) {
+        public void enqueueIfTriggered(InputSource input, CommandQueue queue) {
             if (shooter == null) return;
-            boolean isPressed = Gdx.input.isKeyPressed(key);
+            boolean isPressed = input.isKeyPressed(key);
             if (isPressed && !wasPressed) {
                 queue.enqueue(() -> shooter.shoot(tank));
             }
@@ -125,8 +119,8 @@ public class InputHandler {
         }
 
         @Override
-        public void enqueueIfTriggered(CommandQueue queue) {
-            boolean isPressed = Gdx.input.isKeyPressed(key);
+        public void enqueueIfTriggered(InputSource input, CommandQueue queue) {
+            boolean isPressed = input.isKeyPressed(key);
             if (isPressed && !wasPressed) {
                 queue.enqueue(controller::toggle);
             }

@@ -1,6 +1,5 @@
 # Нарушения SOLID (план)
 
-Проверены файлы в `src/main/java`. Ниже перечислены только те, где есть явные нарушения SOLID с краткими пояснениями.
 
 ## src/main/java/ru/mipt/bit/platformer/GameSession.java
 - SRP: класс одновременно загружает уровень, создает мир, спавнит танки/препятствия, настраивает ввод и AI, управляет кадром и жизненным циклом — много причин для изменений.
@@ -40,3 +39,6 @@
 - `src/main/java/ru/mipt/bit/platformer/level/FileLevelLoader.java`: заполняет размеры уровня из текстовой карты.
 - `src/main/java/ru/mipt/bit/platformer/level/RandomLevelGenerator.java`: выставляет размеры и использует их в генерации.
 - `src/main/java/ru/mipt/bit/platformer/level/TmxLevelLoader.java`: читает размеры карты из TMX и переносит в `LevelData`.
+ - `src/main/java/ru/mipt/bit/platformer/InputHandler.java`: выделен источник ввода `InputSource`, обработчик больше не зависит напрямую от `Gdx.input`; команды ввода оформлены через публичный интерфейс `InputCommand`, добавлена возможность инъекции/расширения набора команд (OCP). Сохранен совместимый конструктор, создающий дефолтные биндинги. Удалены конструкторы, создающие `MovementRules` внутри (DIP/SRP).
+ - `src/main/java/ru/mipt/bit/platformer/InputSource.java`: новая абстракция источника ввода (DIP).
+ - `src/main/java/ru/mipt/bit/platformer/GdxInputSource.java`: адаптер к `Gdx.input`.
