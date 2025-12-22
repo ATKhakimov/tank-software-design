@@ -24,7 +24,6 @@ public class InputHandler {
         this(input, buildDefaultCommands(tank, rules, healthBarsController));
     }
 
-    // Backward-compatible convenience ctor used by GameSession
     public InputHandler(TankModel tank, MovementRules rules, HealthBarsController healthBarsController) {
         this(new GdxInputSource(), tank, rules, healthBarsController);
     }

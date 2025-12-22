@@ -1,6 +1,30 @@
 # Improvements Log
 
-## Spring IoC and Lifecycle (block 1)
+## SOLID fixes 
+- LevelGraphics OCP/DIP: убраны instanceof-ветки; введены `RenderableFactory`/`GameObjectRenderableFactory`, создание view делегировано абстракции; `LevelGraphics` осталась только наблюдателем и хранителем Renderable-объектов.
+- GameField DIP/OCP: загрузка карты вынесена в `MapProvider` (`TmxMapProvider` по умолчанию); `GameField` больше не создаёт `TmxMapLoader` и не знает путь к ресурсу.
+- BulletModel DIP: пуля больше не зависит от `WorldModel`; добавлен `CollisionContext` (границы/коллизии/урон), реализован в `WorldModel`; пули обновляются через контекст.
+- WorldModel SRP: стрельба/урон в `CombatSystem` (`DefaultCombatSystem`), шаг пуль в `BulletSimulator`; `WorldModel` хранит состояние и публикует события.
+- Конфигурация: `RenderingConfiguration` создаёт `MapProvider`, `GameDesktopLauncher` инжектирует фабрику рендеров и провайдер карты; новые абстракции подключены через Spring.
+
+## Architecture Overview ( актуально на Dec 2025)
+- Слои и зависимости:
+	- Core Model: `WorldModel` (состояние, наблюдатели), `CombatSystem` (стрельба/урон), `BulletSimulator` (обновление пуль), сущности (`TankModel`, `BulletModel`, `Obstacle` и т.п.). Модель не знает о рендере и вводе.
+	- Input: `InputHandler` читает `InputSource`, раскладывает `InputCommand` в `CommandQueue`. Команды исполняются в начале тика.
+	- AI: `AIHandler` использует `BotStrategy`/`AIShootingPolicy`, пишет команды в ту же очередь, обеспечивая порядок input → AI → мир.
+	- World Updates: `GameSession` исполняет очередь команд, вызывает `WorldModel.tick`, затем уведомляет view. Боевая логика делегирована в `CombatSystem`/`BulletSimulator`.
+	- View/Rendering: `LevelGraphics` реализует `WorldObserver`, хранит renderable-объекты, не знает модельные типы; `RenderableFactory`/`GameObjectRenderableFactory` создают renderables. `GameField` рендерит карту (`MapProvider` → `TmxMapProvider`) и задаёт правила движения (`TileMovement`).
+	- Resources: `RenderingConfiguration` создаёт `SpriteBatch`, текстуры, pixel-texture; все ресурсы `@Bean(destroyMethod="dispose")` для корректного lifecycle.
+	- Composition: Spring-конфиги (`CoreConfiguration`, `RenderingConfiguration`, `InputConfiguration`, `GameSessionConfiguration`, `AiConfiguration`) собирают зависимости; `GameDesktopLauncher` поднимает контекст и делегирует в `GameSession`.
+- Поток данных за кадр: Input/AI пишут команды → `GameSession` исполняет очередь → `WorldModel` обновляется и через `WorldObserver` сообщает `LevelGraphics` → `LevelGraphics` обновляет renderables → `GameField` и renderables рисуются через общий `SpriteBatch`.
+- Расширяемость:
+	- Новые сущности рендерятся через добавление `RenderableCreation` в `GameObjectRenderableFactory` без правок `LevelGraphics`.
+	- Альтернативные карты подключаются через реализацию `MapProvider` (например, другой формат или ресурс).
+	- Поведение AI меняется заменой `BotStrategy`/`AIShootingPolicy` в конфиге.
+	- Правила боя меняются заменой `CombatSystem`; физика пуль — заменой `BulletSimulator`.
+	- Источники ввода подменяются реализациями `InputSource` (для тестов или другого UI).
+
+## Spring IoC and Lifecycle (old)
 - Было: один GameConfig с минимальной конфигурацией; GameDesktopLauncher помечен @Component, но создавался вручную через getBean; ресурсы batch/texture создавались и диспоузились вручную; рендеринговые зависимости создавались через new внутри лаунчера.
 - Стало: модульные конфиги Core/Ai/Input/Rendering/GameSession; все зависимости (batch, field, level loader, стратегии, world factory, текстуры) инжектятся через Spring; ресурсы объявлены как @Bean с destroyMethod=dispose; main поднимает GameSessionConfiguration в try-with-resources для корректного закрытия контекста.
 - Почему: корректное IoC-разделение, управление жизненным циклом ресурсов через Spring, отсутствие ручного new/dispose, соблюдение SRP и DI.

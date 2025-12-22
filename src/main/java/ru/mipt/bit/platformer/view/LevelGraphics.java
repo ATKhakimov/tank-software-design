@@ -147,7 +147,6 @@ public class LevelGraphics implements WorldObserver {
                 }
             }
         } else if (object instanceof Obstacle) {
-            // obstacles are static in current implementation; skip removal
         } else if (object instanceof BulletModel) {
             for (int i = 0; i < bullets.size(); i++) {
                 Renderable r = bullets.get(i);
