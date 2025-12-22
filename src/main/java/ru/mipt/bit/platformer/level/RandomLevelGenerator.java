@@ -24,10 +24,13 @@ public class RandomLevelGenerator implements LevelLoader {
     @Override
     public LevelData load() {
         LevelData data = new LevelData();
-        GridPoint2 start = new GridPoint2(random.nextInt(Math.max(1, width)), random.nextInt(Math.max(1, height)));
+        int worldWidth = Math.max(1, width);
+        int worldHeight = Math.max(1, height);
+        data.setSize(worldWidth, worldHeight);
+        GridPoint2 start = new GridPoint2(random.nextInt(worldWidth), random.nextInt(worldHeight));
         data.setPlayerStart(start);
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
+        for (int y = 0; y < worldHeight; y++) {
+            for (int x = 0; x < worldWidth; x++) {
                 if (x == start.x && y == start.y) {
                     continue;
                 }

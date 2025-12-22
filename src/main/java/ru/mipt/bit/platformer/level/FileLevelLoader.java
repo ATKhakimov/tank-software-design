@@ -23,6 +23,7 @@ public class FileLevelLoader implements LevelLoader {
         LevelData data = new LevelData();
         if (lines.isEmpty()) {
             data.setPlayerStart(new GridPoint2(0, 0));
+            data.setSize(1, 1);
             return data;
         }
         int height = lines.size();
@@ -30,6 +31,7 @@ public class FileLevelLoader implements LevelLoader {
         for (String l : lines) {
             width = Math.max(width, l.length());
         }
+        data.setSize(width, height);
         for (int row = 0; row < height; row++) {
             String line = lines.get(row);
             int y = height - 1 - row;

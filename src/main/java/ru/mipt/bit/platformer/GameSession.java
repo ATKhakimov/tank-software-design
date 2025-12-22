@@ -53,8 +53,8 @@ public class GameSession {
 
     public void start() {
         LevelData data = levelLoader.load();
-        int w = levelGraphics.getField().widthInTiles();
-        int h = levelGraphics.getField().heightInTiles();
+        int w = data.getWidth();
+        int h = data.getHeight();
 
         world = worldFactory.create(w, h);
         world.addObserver(levelGraphics);

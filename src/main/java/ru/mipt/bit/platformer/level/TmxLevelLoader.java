@@ -42,6 +42,7 @@ public class TmxLevelLoader implements LevelLoader {
             doc.getDocumentElement().normalize();
 
             LevelData data = new LevelData();
+            parseMapSize(doc, data);
             parseObjects(doc, data);
             parseAsciiProperty(doc, data);
             return data;
@@ -70,6 +71,15 @@ public class TmxLevelLoader implements LevelLoader {
                     data.setPlayerStart(new GridPoint2(tileX, tileY));
                 }
             }
+        }
+    }
+
+    private void parseMapSize(Document doc, LevelData data) {
+        Node map = doc.getDocumentElement();
+        int width = intAttr(map, "width", 0);
+        int height = intAttr(map, "height", 0);
+        if (width > 0 && height > 0) {
+            data.setSize(width, height);
         }
     }
 
@@ -132,6 +142,16 @@ public class TmxLevelLoader implements LevelLoader {
         if (v == null) return def;
         try {
             return Float.parseFloat(v);
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
+    private int intAttr(Node node, String name, int def) {
+        String v = attr(node, name);
+        if (v == null) return def;
+        try {
+            return Integer.parseInt(v);
         } catch (NumberFormatException e) {
             return def;
         }
