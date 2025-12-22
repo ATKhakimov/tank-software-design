@@ -10,13 +10,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Lazy;
 import ru.mipt.bit.platformer.GameDesktopLauncher;
-import ru.mipt.bit.platformer.HealthBarsController;
+import ru.mipt.bit.platformer.view.HealthBarsController;
 import ru.mipt.bit.platformer.config.WorldModelFactory;
 import ru.mipt.bit.platformer.level.FileLevelLoader;
 import ru.mipt.bit.platformer.level.LevelLoader;
 import ru.mipt.bit.platformer.level.RandomLevelGenerator;
 import ru.mipt.bit.platformer.ai.BotStrategy;
-import ru.mipt.bit.platformer.GameField;
+import ru.mipt.bit.platformer.view.GameField;
 
 @Configuration
 @Import({CoreConfiguration.class, AiConfiguration.class, InputConfiguration.class, RenderingConfiguration.class})

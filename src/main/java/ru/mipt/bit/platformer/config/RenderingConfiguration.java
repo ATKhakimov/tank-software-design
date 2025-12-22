@@ -7,7 +7,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
-import ru.mipt.bit.platformer.GameField;
+import ru.mipt.bit.platformer.view.GameField;
 
 @Configuration
 public class RenderingConfiguration {

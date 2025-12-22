@@ -1,8 +1,14 @@
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.view;
 
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.GridPoint2;
+import ru.mipt.bit.platformer.view.BulletRenderable;
+import ru.mipt.bit.platformer.view.HealthBarDecorator;
+import ru.mipt.bit.platformer.view.HealthBarsController;
+import ru.mipt.bit.platformer.view.Renderable;
+import ru.mipt.bit.platformer.view.Tank;
+import ru.mipt.bit.platformer.view.TreeObstacle;
 import ru.mipt.bit.platformer.model.BulletModel;
 import ru.mipt.bit.platformer.model.GameObject;
 import ru.mipt.bit.platformer.model.Obstacle;
@@ -10,7 +16,6 @@ import ru.mipt.bit.platformer.model.TankModel;
 import ru.mipt.bit.platformer.model.TreeObstacleModel;
 import ru.mipt.bit.platformer.model.WorldObserver;
 import ru.mipt.bit.platformer.util.TileMovement;
-import ru.mipt.bit.platformer.HealthBarDecorator;
 
 import java.util.ArrayList;
 import java.util.HashMap;

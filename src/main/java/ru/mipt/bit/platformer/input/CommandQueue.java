@@ -1,4 +1,4 @@
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.input;
 
 import java.util.ArrayList;
 import java.util.List;

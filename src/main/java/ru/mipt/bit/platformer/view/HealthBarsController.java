@@ -1,4 +1,4 @@
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.view;
 
 public interface HealthBarsController {
     void toggle();

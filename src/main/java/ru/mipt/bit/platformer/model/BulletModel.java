@@ -1,7 +1,7 @@
 package ru.mipt.bit.platformer.model;
 
 import com.badlogic.gdx.math.GridPoint2;
-import ru.mipt.bit.platformer.Direction;
+import ru.mipt.bit.platformer.model.Direction;
 
 public class BulletModel implements GameObject {
     private final GridPoint2 coordinates = new GridPoint2();

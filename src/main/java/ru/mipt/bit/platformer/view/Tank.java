@@ -1,5 +1,5 @@
 // Графическое представление танка
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.view;
 
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
@@ -38,7 +38,7 @@ public class Tank implements Renderable {
     public Rectangle getBounds() {
         return rectangle;
     }
-    
+
     public void align(TileMovement movement) {
         movement.moveRectangleBetweenTileCenters(rectangle, model.getCoordinates(), model.getDestination(), 1f);
     }

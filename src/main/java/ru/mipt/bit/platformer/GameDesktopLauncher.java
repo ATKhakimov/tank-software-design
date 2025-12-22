@@ -10,7 +10,12 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import ru.mipt.bit.platformer.ai.BotStrategy;
 import ru.mipt.bit.platformer.config.WorldModelFactory;
+import ru.mipt.bit.platformer.game.GameSession;
+import ru.mipt.bit.platformer.game.GameWorldBuilder;
 import ru.mipt.bit.platformer.level.LevelLoader;
+import ru.mipt.bit.platformer.view.GameField;
+import ru.mipt.bit.platformer.view.HealthBarsController;
+import ru.mipt.bit.platformer.view.LevelGraphics;
 
 public class GameDesktopLauncher implements ApplicationListener {
 
@@ -57,8 +62,9 @@ public class GameDesktopLauncher implements ApplicationListener {
         Texture pixelTexture = pixelTextureProvider.getObject();
 
         LevelGraphics levelGraphics = new LevelGraphics(field, batch, tankTexture, treeTexture, pixelTexture, healthBarsController);
-        gameSession = new GameSession(worldFactory, botStrategy, healthBarsController, levelLoader, levelGraphics, botsCount);
-        gameSession.start();
+        GameWorldBuilder builder = new GameWorldBuilder(worldFactory, botStrategy, healthBarsController, levelLoader, botsCount);
+        gameSession = new GameSession(builder.build(), levelGraphics);
+        gameSession.initialize();
     }
 
     @Override

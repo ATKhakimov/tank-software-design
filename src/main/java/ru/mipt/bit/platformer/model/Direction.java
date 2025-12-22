@@ -1,5 +1,5 @@
 // Перечисление направлений: вектор направления, поворот и привязка клавиш
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.model;
 
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.math.Vector2;

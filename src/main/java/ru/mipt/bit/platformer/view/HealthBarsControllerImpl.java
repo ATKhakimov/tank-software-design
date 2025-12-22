@@ -1,4 +1,4 @@
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.view;
 
 public class HealthBarsControllerImpl implements HealthBarsController {
     private boolean enabled = false;

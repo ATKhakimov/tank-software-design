@@ -1,4 +1,4 @@
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.input;
 
 import com.badlogic.gdx.Gdx;
 

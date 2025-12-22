@@ -1,5 +1,5 @@
 // Реализована абстракция игрового поля
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.view;
 
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.maps.tiled.TiledMap;

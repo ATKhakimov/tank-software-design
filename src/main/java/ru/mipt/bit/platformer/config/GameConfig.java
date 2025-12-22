@@ -7,8 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import ru.mipt.bit.platformer.ai.BotStrategy;
 import ru.mipt.bit.platformer.ai.HoldCourseStrategy;
 import ru.mipt.bit.platformer.ai.RandomStrategy;
-import ru.mipt.bit.platformer.HealthBarsController;
-import ru.mipt.bit.platformer.HealthBarsControllerImpl;
+import ru.mipt.bit.platformer.view.HealthBarsController;
+import ru.mipt.bit.platformer.view.HealthBarsControllerImpl;
 import ru.mipt.bit.platformer.model.WorldModel;
 
 @Configuration

@@ -1,7 +1,9 @@
-// Обработчик ввода: маппинг клавиш -> команды, без прямой зависимости от Gdx
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.input;
 
 import com.badlogic.gdx.Input;
+import ru.mipt.bit.platformer.input.CommandQueue;
+import ru.mipt.bit.platformer.model.Direction;
+import ru.mipt.bit.platformer.view.HealthBarsController;
 import ru.mipt.bit.platformer.model.MovementRules;
 import ru.mipt.bit.platformer.model.Shooter;
 import ru.mipt.bit.platformer.model.TankModel;
@@ -39,11 +41,15 @@ public class InputHandler {
         }
     }
 
-    public CommandQueue collectCommands() {
-        CommandQueue queue = new CommandQueue();
+    public void enqueueCommands(CommandQueue queue) {
         for (InputCommand command : commands) {
             command.enqueueIfTriggered(input, queue);
         }
+    }
+
+    public CommandQueue collectCommands() {
+        CommandQueue queue = new CommandQueue();
+        enqueueCommands(queue);
         return queue;
     }
 

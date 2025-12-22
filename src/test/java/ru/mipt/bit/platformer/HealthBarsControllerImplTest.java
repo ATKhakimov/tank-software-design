@@ -1,6 +1,8 @@
 package ru.mipt.bit.platformer;
 
 import org.junit.jupiter.api.Test;
+import ru.mipt.bit.platformer.view.HealthBarsController;
+import ru.mipt.bit.platformer.view.HealthBarsControllerImpl;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HealthBarsControllerImplTest {

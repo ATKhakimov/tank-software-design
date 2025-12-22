@@ -1,5 +1,4 @@
-// Интерфейс отрисовываемого объекта
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.view;
 
 import com.badlogic.gdx.graphics.g2d.Batch;
 import ru.mipt.bit.platformer.util.TileMovement;

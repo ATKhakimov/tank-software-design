@@ -2,8 +2,9 @@ package ru.mipt.bit.platformer.ai;
 
 import com.badlogic.gdx.math.GridPoint2;
 import org.junit.jupiter.api.Test;
-import ru.mipt.bit.platformer.AIHandler;
-import ru.mipt.bit.platformer.Direction;
+import ru.mipt.bit.platformer.game.AIHandler;
+import ru.mipt.bit.platformer.input.CommandQueue;
+import ru.mipt.bit.platformer.model.Direction;
 import ru.mipt.bit.platformer.model.MovementRules;
 import ru.mipt.bit.platformer.model.Shooter;
 import ru.mipt.bit.platformer.model.TankModel;
@@ -29,11 +30,13 @@ class AIHandlerTest {
         CountingShooter shooter = new CountingShooter();
         BotStrategy strategy = (t, r) -> Collections.singletonList(Direction.UP);
 
-        AIHandler handler = new AIHandler(rules, Collections.singletonList(tank), strategy, shooter);
+        AIHandler handler = new AIHandler(rules, Collections.singletonList(tank), strategy, shooter, new Random(7L));
 
         int attempts = 0;
         while (tank.getProgress() == 1f && attempts < 50) { // loop until movement started
-            handler.handle();
+            CommandQueue queue = new CommandQueue();
+            handler.enqueueCommands(queue);
+            queue.executeAll();
             attempts++;
         }
         assertNotEquals(1f, tank.getProgress(), "Movement should have started (progress reset) within attempts");
@@ -49,10 +52,12 @@ class AIHandlerTest {
         CountingShooter shooter = new CountingShooter();
         HoldCourseStrategy strategy = new HoldCourseStrategy();
 
-        AIHandler handler = new AIHandler(rules, Collections.singletonList(tank), strategy, shooter);
+        AIHandler handler = new AIHandler(rules, Collections.singletonList(tank), strategy, shooter, new Random(11L));
         int attempts = 0;
         while (tank.getProgress() == 1f && attempts < 50) {
-            handler.handle();
+            CommandQueue queue = new CommandQueue();
+            handler.enqueueCommands(queue);
+            queue.executeAll();
             attempts++;
         }
         assertNotEquals(1f, tank.getProgress(), "Movement should have started");

@@ -2,7 +2,7 @@ package ru.mipt.bit.platformer.ai;
 
 import com.badlogic.gdx.math.GridPoint2;
 import org.junit.jupiter.api.Test;
-import ru.mipt.bit.platformer.Direction;
+import ru.mipt.bit.platformer.model.Direction;
 import ru.mipt.bit.platformer.model.MovementRules;
 import ru.mipt.bit.platformer.model.Obstacle;
 import ru.mipt.bit.platformer.model.TankModel;
